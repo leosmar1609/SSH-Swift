@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Connection extends Model
@@ -11,6 +13,7 @@ class Connection extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'name',
         'host',
         'port',
@@ -20,8 +23,18 @@ class Connection extends Model
     ];
 
     protected $casts = [
-        'port' => 'integer',
+        'port'           => 'integer',
+        'startup_script' => 'encrypted',
     ];
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope('user', function (Builder $query) {
+            if (auth()->check()) {
+                $query->where('user_id', auth()->id());
+            }
+        });
+    }
 
     public function getStartupScriptLinesAttribute(): array
     {
@@ -40,6 +53,11 @@ class Connection extends Model
         return strlen($this->host) > 30
             ? substr($this->host, 0, 27) . '...'
             : $this->host;
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function favorites(): HasMany

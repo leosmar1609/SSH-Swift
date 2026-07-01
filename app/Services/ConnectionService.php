@@ -33,6 +33,8 @@ class ConnectionService
             $data['ssh_key_path'] = $this->storeSSHKey($keyFile);
         }
 
+        $data['user_id'] = auth()->id();
+
         return $this->repository->create($data);
     }
 

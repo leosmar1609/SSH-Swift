@@ -458,10 +458,30 @@
         </a>
 
         <div class="lp-navbar-right">
-            <span class="lp-badge">
-                <i class="bi bi-circle-fill" style="font-size:7px;color:#3fb950"></i>
-                v1.0
-            </span>
+            @auth
+                @if(auth()->user()->is_admin)
+                    <a href="{{ route('users.index') }}"
+                       class="lp-nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                        <i class="bi bi-people me-1"></i>Usuários
+                    </a>
+                    <div class="lp-nav-sep"></div>
+                @endif
+
+                <span style="color:var(--lp-text-muted);font-size:12px;display:flex;align-items:center;gap:.4rem">
+                    <i class="bi bi-person-circle" style="font-size:15px"></i>
+                    {{ auth()->user()->name }}
+                    @if(auth()->user()->is_admin)
+                        <span style="background:rgba(88,166,255,.15);color:var(--lp-blue);font-size:10px;font-weight:600;padding:.1rem .45rem;border-radius:4px;border:1px solid rgba(88,166,255,.25)">ADMIN</span>
+                    @endif
+                </span>
+
+                <form method="POST" action="{{ route('logout') }}" style="margin:0">
+                    @csrf
+                    <button type="submit" class="btn-lp-secondary" style="padding:.3rem .7rem;font-size:12px">
+                        <i class="bi bi-box-arrow-right"></i> Sair
+                    </button>
+                </form>
+            @endauth
         </div>
     </nav>
 
