@@ -80,6 +80,18 @@
         document.getElementById('deleteForm').action = btn.dataset.action;
     });
 
+    // Botão de duplicar conexão
+    document.querySelectorAll('.btn-duplicate-conn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const f = document.createElement('form');
+            f.method = 'POST';
+            f.action = btn.dataset.duplicateUrl;
+            f.innerHTML = `<input type="hidden" name="_token" value="{{ csrf_token() }}">`;
+            document.body.appendChild(f);
+            f.submit();
+        });
+    });
+
     // Botão de teste rápido de conexão (ícone de plug)
     document.querySelectorAll('.btn-test-conn').forEach(btn => {
         btn.addEventListener('click', async () => {

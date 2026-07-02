@@ -489,6 +489,8 @@
     <div class="ctx-sep" id="ctx-sep-term"></div>
     <div class="ctx-item" id="ctx-terminal"  onclick="LP_CTX.openInTerminal()"><i class="bi bi-terminal" style="width:14px"></i> Abrir no Terminal</div>
     <div class="ctx-item" id="ctx-shortcut" onclick="LP_CTX.promptShortcut()"><i class="bi bi-signpost-split" style="width:14px"></i> Adicionar como Atalho</div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" id="ctx-duplicate" onclick="LP_CTX.promptDuplicate()"><i class="bi bi-copy" style="width:14px"></i> Duplicar</div>
 </div>
 
 {{-- ── Search modal ── --}}
@@ -693,6 +695,28 @@
     </div>
 </div>
 
+{{-- ── Duplicate modal ── --}}
+<div class="modal fade lp-modal" id="modalDuplicate" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" style="font-size:14px;font-weight:600">
+                    <i class="bi bi-copy me-2" style="color:var(--blue)"></i>Duplicar
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label style="font-size:12px;color:var(--muted);margin-bottom:6px;display:block">Novo nome</label>
+                <input type="text" id="inputDuplicateName" class="lp-input" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="modal-footer gap-2">
+                <button type="button" class="lp-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="lp-btn-primary" onclick="LP.doConfirmDuplicate()">Duplicar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ── Delete confirm modal ── --}}
 <div class="modal fade lp-modal" id="modalDelete" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-sm">
@@ -787,6 +811,7 @@ let editor = null, monacoReady = false, pendingOpen = null;
 let _createFileDir = '', _createDirParent = '';
 let _renamePath = '', _renameIsDir = false;
 let _deletePath = '', _deleteType  = '';
+let _dupSrcPath = '', _dupSrcType  = '';
 
 // ─── LP ───────────────────────────────────────────────────────────────────────
 const LP = {
@@ -1706,6 +1731,54 @@ const LP = {
         setTimeout(() => t.remove(), 2900);
     },
 
+    promptDuplicate(path, type) {
+        _dupSrcPath = path;
+        _dupSrcType = type;
+
+        const name    = path.split('/').pop();
+        const isDir   = type === 'dir';
+        const dotIdx  = isDir ? -1 : name.lastIndexOf('.');
+        const base    = dotIdx > 0 ? name.slice(0, dotIdx) : name;
+        const ext     = dotIdx > 0 ? name.slice(dotIdx) : '';
+        const newName = base + '_copy' + ext;
+
+        const input = document.getElementById('inputDuplicateName');
+        input.value = newName;
+
+        const m = new bootstrap.Modal(document.getElementById('modalDuplicate'));
+        m.show();
+        document.getElementById('modalDuplicate').addEventListener('shown.bs.modal', () => { input.focus(); input.select(); }, { once: true });
+        input.onkeydown = e => { if (e.key === 'Enter') this.doConfirmDuplicate(); };
+    },
+
+    async doConfirmDuplicate() {
+        const newName = document.getElementById('inputDuplicateName').value.trim();
+        if (!newName) return;
+        const dir = _dupSrcPath.split('/').slice(0, -1).join('/');
+        const to  = dir + '/' + newName;
+        bootstrap.Modal.getInstance(document.getElementById('modalDuplicate'))?.hide();
+
+        try {
+            const { data } = await axios.post(`${LP_CFG.apiBase}/fs/duplicate`, { from: _dupSrcPath, to });
+            if (data.success) {
+                delete treeState.cache[dir];
+                const wrap = document.getElementById('tree-wrap-' + this.pathId(dir));
+                if (wrap) {
+                    wrap.innerHTML = '<div class="lp-tree-msg"><i class="bi bi-arrow-repeat lp-spin"></i></div>';
+                    const entries = await this.fetchDirectory(dir);
+                    if (entries !== null) {
+                        const depth = Math.max(0, dir.split('/').filter(Boolean).length - (treeState.root || '').split('/').filter(Boolean).length);
+                        wrap.innerHTML = '';
+                        this.renderEntries(entries, dir, depth + 1, wrap);
+                    }
+                }
+                this.toast('ok', `"${newName}" criado.`);
+            } else {
+                this.toast('err', data.message);
+            }
+        } catch { this.toast('err', 'Erro ao duplicar.'); }
+    },
+
     esc(str) {
         return String(str)
             .replace(/&/g,'&amp;').replace(/</g,'&lt;')
@@ -1752,13 +1825,14 @@ const LP_CTX = {
 
     hide() { document.getElementById('ctx-menu').style.display = 'none'; },
 
-    openFile()       { this.hide(); LP.openFile(this.path); },
-    promptNewFile()  { this.hide(); LP.promptCreateFile(this.path); },
-    promptNewDir()   { this.hide(); LP.promptCreateDir(this.path); },
-    promptRename()   { this.hide(); LP.promptRename(this.path, this.type === 'dir'); },
-    promptDelete()   { this.hide(); LP.promptDelete(this.path, this.type); },
-    openInTerminal() { this.hide(); LP.terminalOpen(this.path); },
-    promptShortcut() { this.hide(); LP.promptAddShortcut(this.path); },
+    openFile()         { this.hide(); LP.openFile(this.path); },
+    promptNewFile()    { this.hide(); LP.promptCreateFile(this.path); },
+    promptNewDir()     { this.hide(); LP.promptCreateDir(this.path); },
+    promptRename()     { this.hide(); LP.promptRename(this.path, this.type === 'dir'); },
+    promptDelete()     { this.hide(); LP.promptDelete(this.path, this.type); },
+    openInTerminal()   { this.hide(); LP.terminalOpen(this.path); },
+    promptShortcut()   { this.hide(); LP.promptAddShortcut(this.path); },
+    promptDuplicate()  { this.hide(); LP.promptDuplicate(this.path, this.type); },
 };
 
 // ─── Terminal ─────────────────────────────────────────────────────────────────

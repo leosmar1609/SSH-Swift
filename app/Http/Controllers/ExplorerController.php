@@ -193,6 +193,20 @@ class ExplorerController extends Controller
         }
     }
 
+    public function duplicateFile(Connection $connection, Request $request): JsonResponse
+    {
+        $request->validate([
+            'from' => ['required', 'string'],
+            'to'   => ['required', 'string'],
+        ]);
+        try {
+            $this->explorer->copyFile($connection, $request->input('from'), $request->input('to'));
+            return response()->json(['success' => true]);
+        } catch (Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
     public function terminal(Connection $connection, Request $request): JsonResponse
     {
         $request->validate([

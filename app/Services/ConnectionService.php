@@ -55,6 +55,21 @@ class ConnectionService
         return $this->repository->delete($connection);
     }
 
+    public function duplicate(Connection $connection): Connection
+    {
+        $data = $connection->only(['host', 'port', 'username', 'startup_script']);
+        $data['name']    = $connection->name . ' - copy';
+        $data['user_id'] = auth()->id();
+
+        if (! empty($connection->ssh_key_path) && Storage::exists($connection->ssh_key_path)) {
+            $newPath = 'ssh_keys/' . Str::uuid() . '_' . basename($connection->ssh_key_path);
+            Storage::copy($connection->ssh_key_path, $newPath);
+            $data['ssh_key_path'] = $newPath;
+        }
+
+        return $this->repository->create($data);
+    }
+
     public function testConnection(Connection $connection): array
     {
         return $this->sshService->testConnection($connection);

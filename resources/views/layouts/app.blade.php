@@ -184,6 +184,52 @@
             color: var(--lp-red);
         }
 
+        .lp-icon-btn-sm {
+            padding: .4rem .6rem !important;
+        }
+
+        .lp-dropdown-menu {
+            background: var(--lp-surface);
+            border: 1px solid var(--lp-border);
+            border-radius: var(--lp-radius-sm);
+            padding: .3rem;
+            min-width: 155px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.5);
+        }
+
+        .lp-dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            width: 100%;
+            padding: .45rem .75rem;
+            border: none;
+            background: transparent;
+            color: var(--lp-text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background .12s, color .12s;
+            text-align: left;
+            font-family: inherit;
+        }
+
+        .lp-dropdown-item:hover {
+            background: rgba(255,255,255,.06);
+            color: var(--lp-text);
+        }
+
+        .lp-dropdown-danger {
+            color: var(--lp-red);
+        }
+
+        .lp-dropdown-danger:hover {
+            background: rgba(248,81,73,.1);
+            color: var(--lp-red);
+        }
+
         /* ── Layout ── */
         .lp-main {
             max-width: 1100px;
@@ -455,6 +501,29 @@
         <a href="{{ route('connections.index') }}"
            class="lp-nav-link {{ request()->routeIs('connections.*') ? 'active' : '' }}">
             <i class="bi bi-hdd-network me-1"></i>Servidores
+        </a>
+
+        <a href="{{ route('docs.index') }}"
+           class="lp-nav-link {{ request()->routeIs('docs.*') ? 'active' : '' }}">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Docs
+        </a>
+
+        <a href="{{ route('httpclient.index') }}"
+           class="lp-nav-link"
+           target="_blank" rel="noopener">
+            <i class="bi bi-send me-1"></i>HTTP
+        </a>
+
+        <a href="{{ route('jsonformatter.index') }}"
+           class="lp-nav-link"
+           target="_blank" rel="noopener">
+            <i class="bi bi-braces me-1"></i>JSON
+        </a>
+
+        <a href="{{ route('xmlformatter.index') }}"
+           class="lp-nav-link"
+           target="_blank" rel="noopener">
+            <i class="bi bi-code-slash me-1"></i>XML
         </a>
 
         <div class="lp-navbar-right">

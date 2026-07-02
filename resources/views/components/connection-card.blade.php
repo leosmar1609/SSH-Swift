@@ -72,36 +72,53 @@
         </div>
 
         {{-- Footer com ações --}}
-        <div class="lp-card-footer">
-            <a href="{{ route('explorer.show', $connection) }}" class="btn-lp-primary">
+        <div class="lp-card-footer" style="gap:.5rem">
+            <a href="{{ route('explorer.show', $connection) }}" class="btn-lp-primary" style="flex:1;justify-content:center">
                 <i class="bi bi-terminal-fill"></i>
                 Conectar
             </a>
 
-            <div class="d-flex gap-2">
-                <a href="{{ route('connections.edit', $connection) }}" class="btn-lp-secondary" title="Editar">
-                    <i class="bi bi-pencil-fill"></i>
-                </a>
-                <button
-                    type="button"
-                    class="btn-lp-secondary btn-test-conn"
-                    title="Testar conexão"
-                    data-connection-id="{{ $connection->id }}"
-                    data-test-url="{{ route('connections.test', $connection) }}"
-                >
-                    <i class="bi bi-plug-fill"></i>
+            {{-- Testar --}}
+            <button
+                type="button"
+                class="btn-lp-secondary lp-icon-btn-sm btn-test-conn"
+                title="Testar conexão"
+                data-connection-id="{{ $connection->id }}"
+                data-test-url="{{ route('connections.test', $connection) }}"
+            >
+                <i class="bi bi-plug-fill"></i>
+            </button>
+
+            {{-- Dropdown de ações --}}
+            <div class="dropdown">
+                <button type="button" class="btn-lp-secondary lp-icon-btn-sm" data-bs-toggle="dropdown" aria-expanded="false" title="Mais ações">
+                    <i class="bi bi-three-dots-vertical"></i>
                 </button>
-                <button
-                    type="button"
-                    class="btn-lp-danger"
-                    title="Remover"
-                    data-bs-toggle="modal"
-                    data-bs-target="#modalDelete"
-                    data-name="{{ $connection->name }}"
-                    data-action="{{ route('connections.destroy', $connection) }}"
-                >
-                    <i class="bi bi-trash3-fill"></i>
-                </button>
+                <ul class="dropdown-menu dropdown-menu-end lp-dropdown-menu">
+                    <li>
+                        <a class="lp-dropdown-item" href="{{ route('connections.edit', $connection) }}">
+                            <i class="bi bi-pencil-fill"></i> Editar
+                        </a>
+                    </li>
+                    <li>
+                        <button type="button" class="lp-dropdown-item btn-duplicate-conn" data-duplicate-url="{{ route('connections.duplicate', $connection) }}">
+                            <i class="bi bi-copy"></i> Duplicar
+                        </button>
+                    </li>
+                    <li><hr class="dropdown-divider" style="border-color:var(--lp-border-muted);margin:.25rem 0"></li>
+                    <li>
+                        <button
+                            type="button"
+                            class="lp-dropdown-item lp-dropdown-danger"
+                            data-bs-toggle="modal"
+                            data-bs-target="#modalDelete"
+                            data-name="{{ $connection->name }}"
+                            data-action="{{ route('connections.destroy', $connection) }}"
+                        >
+                            <i class="bi bi-trash3-fill"></i> Excluir
+                        </button>
+                    </li>
+                </ul>
             </div>
         </div>
 

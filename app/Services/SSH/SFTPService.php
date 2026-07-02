@@ -187,6 +187,18 @@ class SFTPService
         ];
     }
 
+    public function copyFile(Connection $connection, string $from, string $to): void
+    {
+        $ssh = $this->ssh($connection);
+        $ssh->setTimeout(15);
+        $output = $ssh->exec('sudo cp -r ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
+        $ssh->disconnect();
+
+        if (! str_contains($output, '__LP_OK__')) {
+            throw new RuntimeException("Não foi possível copiar '{$from}'.");
+        }
+    }
+
     public function createFile(Connection $connection, string $path): void
     {
         $ssh = $this->ssh($connection);

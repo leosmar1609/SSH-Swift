@@ -88,6 +88,13 @@ class FileExplorerService
         $this->sftp->delete($connection, $path);
     }
 
+    public function copyFile(Connection $connection, string $from, string $to): void
+    {
+        $this->guardPath($connection, $from);
+        $this->guardPath($connection, $to);
+        $this->sftp->copyFile($connection, $from, $to);
+    }
+
     public function tailFile(Connection $connection, string $path, int $offset): array
     {
         $this->guardPath($connection, $path);

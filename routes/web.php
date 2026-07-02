@@ -30,6 +30,9 @@ Route::middleware('auth')->group(function () {
     Route::post('connections/{connection}/test', [ConnectionController::class, 'test'])
         ->name('connections.test');
 
+    Route::post('connections/{connection}/duplicate', [ConnectionController::class, 'duplicate'])
+        ->name('connections.duplicate');
+
     // ── Explorer (File Manager IDE) ──────────────────────────────────────────
     Route::prefix('explorer/{connection}')->name('explorer.')->group(function () {
 
@@ -45,14 +48,28 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/fs/file',      [ExplorerController::class, 'createFile'])   ->name('fs.file');
         Route::post('/fs/dir',       [ExplorerController::class, 'createDir'])    ->name('fs.dir');
-        Route::post('/fs/rename',    [ExplorerController::class, 'rename'])       ->name('fs.rename');
-        Route::delete('/fs/delete',  [ExplorerController::class, 'delete'])       ->name('fs.delete');
+        Route::post('/fs/rename',    [ExplorerController::class, 'rename'])        ->name('fs.rename');
+        Route::delete('/fs/delete',  [ExplorerController::class, 'delete'])        ->name('fs.delete');
+        Route::post('/fs/duplicate', [ExplorerController::class, 'duplicateFile'])->name('fs.duplicate');
         Route::post('/terminal',     [ExplorerController::class, 'terminal'])     ->name('terminal');
 
         Route::post('/shortcuts',              [ExplorerController::class, 'addShortcut'])    ->name('shortcuts.add');
         Route::delete('/shortcuts/{shortcut}', [ExplorerController::class, 'removeShortcut'])->name('shortcuts.remove');
         Route::patch('/shortcuts/{shortcut}',  [ExplorerController::class, 'updateShortcut'])->name('shortcuts.update');
     });
+
+    // ── Docs generator ──────────────────────────────────────────────────────
+    Route::get('/docs', fn() => view('docs.index'))->name('docs.index');
+
+    // ── HTTP Client ──────────────────────────────────────────────────────────
+    Route::get('/httpclient', fn() => view('httpclient.index'))->name('httpclient.index');
+    Route::post('/httpclient/proxy', [\App\Http\Controllers\HttpClientController::class, 'proxy'])->name('httpclient.proxy');
+
+    // ── JSON Formatter ───────────────────────────────────────────────────────
+    Route::get('/jsonformatter', fn() => view('jsonformatter.index'))->name('jsonformatter.index');
+
+    // ── XML / HTML Formatter ─────────────────────────────────────────────────
+    Route::get('/xmlformatter', fn() => view('xmlformatter.index'))->name('xmlformatter.index');
 
     // ── Users (admin only) ───────────────────────────────────────────────────
     Route::middleware('admin')->group(function () {

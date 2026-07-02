@@ -70,6 +70,15 @@ class ConnectionController extends Controller
             ->with('success', 'Conexão removida com sucesso.');
     }
 
+    public function duplicate(Connection $connection): RedirectResponse
+    {
+        $this->service->duplicate($connection);
+
+        return redirect()
+            ->route('connections.index')
+            ->with('success', 'Conexão duplicada com sucesso.');
+    }
+
     public function test(Connection $connection): JsonResponse
     {
         $result = $this->service->testConnection($connection);
