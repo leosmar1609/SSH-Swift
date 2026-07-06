@@ -629,6 +629,11 @@
             <label for="new-coll-name">Nome da nova coleção</label>
             <input type="text" id="new-coll-name" placeholder="Minha API" style="margin-bottom:0">
         </div>
+        <div style="margin:10px 0;">
+            <label style="font-size:12px;color:var(--text);display:flex;align-items:center;gap:8px;">
+                <input type="checkbox" id="save-response-checkbox" style="accent-color:var(--blue);"> Salvar também a resposta
+            </label>
+        </div>
         <div class="lp-modal-actions">
             <button class="lp-icon-btn" id="btn-cancel-save">Cancelar</button>
             <button class="lp-icon-btn primary" id="btn-confirm-save"><i class="bi bi-check2"></i> Salvar</button>
@@ -1495,6 +1500,7 @@ function renderCollections() {
                 <span class="coll-name-label">${esc(coll.name)}</span>
                 <input type="text" class="coll-name-input" value="${esc(coll.name)}" spellcheck="false">
                 <div class="coll-group-actions">
+                    <button title="Exportar coleção" class="coll-export-btn" data-coll-id="${esc(coll.id)}"><i class="bi bi-download"></i></button>
                     <button title="Renomear" class="coll-rename-btn" data-coll-id="${esc(coll.id)}"><i class="bi bi-pencil"></i></button>
                     <button title="Excluir coleção" class="coll-delete-btn" data-coll-id="${esc(coll.id)}" style="color:var(--red)"><i class="bi bi-trash"></i></button>
                 </div>
@@ -1524,6 +1530,13 @@ function renderCollections() {
         hdr.addEventListener('dblclick', e => {
             if (e.target.closest('.coll-group-actions')) return;
             startRenameCollection(hdr.dataset.collId);
+        });
+    });
+
+    document.querySelectorAll('.coll-export-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            downloadCollection(btn.dataset.collId);
         });
     });
 
@@ -1589,6 +1602,99 @@ function finishRenameCollection(collId, newName) {
     renderCollections();
 }
 
+function downloadJsonFile(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function buildPostmanCollectionItem(item) {
+    const request = {
+        method: item.method || 'GET',
+        header: (item.headers || []).filter(h => h.key).map(h => ({ key: h.key, value: h.value })),
+        url: {
+            raw: item.url || '',
+            query: (item.params || []).filter(p => p.key).map(p => ({ key: p.key, value: p.value })),
+        }
+    };
+
+    if (item.bodyType === 'json' && item.bodyJson.trim()) {
+        request.body = {
+            mode: 'raw',
+            raw: item.bodyJson,
+            options: { raw: { language: 'json' } }
+        };
+    } else if (item.bodyType === 'raw' && item.bodyRaw.trim()) {
+        request.body = { mode: 'raw', raw: item.bodyRaw };
+    } else if (item.bodyType === 'form') {
+        request.body = {
+            mode: 'formdata',
+            formdata: (item.bodyForm || []).filter(f => f.key).map(f => ({ key: f.key, value: f.value }))
+        };
+    } else if (item.bodyType === 'urlencoded') {
+        request.body = {
+            mode: 'urlencoded',
+            urlencoded: (item.bodyUrlEncoded || []).filter(f => f.key).map(f => ({ key: f.key, value: f.value }))
+        };
+    }
+
+    const result = {
+        name: item.name || item.url || item.method,
+        request
+    };
+
+    const savedResponses = Array.isArray(item.responses) ? item.responses : [];
+    if (savedResponses.length) {
+        result.response = savedResponses.map(r => ({
+            name: r.name || (r.code ? String(r.code) : 'Response'),
+            originalRequest: request,
+            status: r.status ?? r.code,
+            code: r.code ?? r.status,
+            body: r.body || '',
+            header: Array.isArray(r.header)
+                ? r.header.map(h => ({ key: h.key, value: h.value }))
+                : Object.entries(r.header || {}).map(([key, value]) => ({ key, value }))
+        }));
+    } else if (item.responseState?.type === 'response' && item.responseState.payload) {
+        const payload = item.responseState.payload;
+        result.response = [{
+            name: payload.statusText ? String(payload.status) + ' ' + payload.statusText : String(payload.status),
+            originalRequest: request,
+            status: payload.status,
+            code: payload.status,
+            body: payload.body || '',
+            header: Object.entries(payload.headers || {}).map(([key, value]) => ({ key, value }))
+        }];
+    }
+
+    return result;
+}
+
+function downloadCollection(collId) {
+    const coll = collections.find(c => c.id === collId);
+    if (!coll) return;
+
+    const payload = {
+        info: {
+            name: coll.name,
+            _postman_id: uid(),
+            description: 'Exported from LeoPanel HTTP Client',
+            schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+        },
+        item: (coll.items || []).map(buildPostmanCollectionItem)
+    };
+
+    const filename = (coll.name || 'collection').replace(/[\\/:*?"<>|]/g, '_') + '.postman_collection.json';
+    downloadJsonFile(filename, payload);
+    showToast('Coleção exportada', 'success');
+}
+
 function loadCollectionItem(collId, itemId) {
     const coll = collections.find(c => c.id === collId);
     if (!coll) return;
@@ -1605,10 +1711,30 @@ function loadCollectionItem(collId, itemId) {
     state.bodyRaw   = item.bodyRaw || '';
     state.bodyForm  = item.bodyForm ? JSON.parse(JSON.stringify(item.bodyForm)) : [];
     state.bodyUrlEncoded = item.bodyUrlEncoded ? JSON.parse(JSON.stringify(item.bodyUrlEncoded)) : [];
+    state.responseState = item.responseState || { type: 'empty' };
+
+    if (item.responses && item.responses.length && state.responseState.type !== 'response') {
+        const resp = item.responses[0];
+        state.responseState = {
+            type: 'response',
+            payload: {
+                status: resp.status || resp.code || '',
+                statusText: resp.name || '',
+                elapsed: '',
+                size: resp.body ? resp.body.length : 0,
+                headers: (resp.header || []).reduce((acc, h) => {
+                    if (h && h.key) acc[h.key] = h.value || '';
+                    return acc;
+                }, {}),
+                body: resp.body || ''
+            }
+        };
+    }
 
     applyStateToUI();
     syncStateToActiveRequest();
     renderRequestTabs();
+    restoreResponseFromState();
     showToast('Requisição carregada', 'success');
 }
 
@@ -1639,6 +1765,7 @@ document.getElementById('btn-save-request').addEventListener('click', () => {
     });
     document.getElementById('save-req-name').value = '';
     document.getElementById('new-coll-wrap').style.display = 'none';
+    document.getElementById('save-response-checkbox').checked = state.responseState?.type === 'response';
     saveModal.classList.add('open');
     document.getElementById('save-req-name').focus();
 });
@@ -1667,6 +1794,17 @@ document.getElementById('btn-confirm-save').addEventListener('click', () => {
     const coll = collections.find(c => c.id === collId);
     if (!coll) return;
 
+    const saveResponse = document.getElementById('save-response-checkbox').checked || state.responseState?.type === 'response';
+    const responseState = saveResponse ? JSON.parse(JSON.stringify(state.responseState || { type: 'empty' })) : { type: 'empty' };
+    const responsePayload = responseState.type === 'response' ? responseState.payload : null;
+    const savedResponses = responsePayload ? [{
+        name: responsePayload.statusText ? String(responsePayload.status) + ' ' + responsePayload.statusText : String(responsePayload.status),
+        status: responsePayload.status,
+        code: responsePayload.status,
+        body: responsePayload.body || '',
+        header: Object.entries(responsePayload.headers || {}).map(([key, value]) => ({ key, value }))
+    }] : [];
+
     const active = getActiveRequest();
     if (active) {
         active.savedName = name;
@@ -1681,6 +1819,8 @@ document.getElementById('btn-confirm-save').addEventListener('click', () => {
         active.bodyForm = JSON.parse(JSON.stringify(state.bodyForm));
         active.bodyUrlEncoded = JSON.parse(JSON.stringify(state.bodyUrlEncoded));
         active.variables = JSON.parse(JSON.stringify(state.variables));
+        active.responseState = responseState;
+        active.responses = savedResponses;
     }
 
     coll.items = coll.items || [];
@@ -1693,6 +1833,8 @@ document.getElementById('btn-confirm-save').addEventListener('click', () => {
         bodyRaw: rawBodyEl.value,
         bodyForm: JSON.parse(JSON.stringify(state.bodyForm)),
         bodyUrlEncoded: JSON.parse(JSON.stringify(state.bodyUrlEncoded)),
+        responseState,
+        responses: savedResponses
     });
 
     saveCollections();

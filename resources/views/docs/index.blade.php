@@ -165,6 +165,10 @@
     border-radius: 8px;
     margin-bottom: 1.25rem;
     box-shadow: 0 1px 3px rgba(0,0,0,.06);
+}
+
+/* Request (header + descrição + parâmetros) nunca quebra no meio */
+.doc-request-block {
     page-break-inside: avoid;
     break-inside: avoid;
 }
@@ -174,6 +178,12 @@
 .doc-response-header {
     page-break-after: avoid;
     break-after: avoid;
+}
+
+/* Cada item de resposta tenta ficar junto, mas o corpo pode quebrar entre páginas */
+.doc-response-item {
+    page-break-inside: auto;
+    break-inside: auto;
 }
 
 .doc-code {
@@ -445,7 +455,15 @@ let currentCollection = null;
 const fileInput  = document.getElementById('file-input');
 const dropZone   = document.getElementById('drop-zone');
 
-dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('click', e => {
+    if (e.target.closest('label[for="file-input"]')) return;
+    fileInput.value = '';
+    fileInput.click();
+});
+
+document.querySelector('label[for="file-input"]').addEventListener('click', e => {
+    e.stopPropagation();
+});
 
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -454,6 +472,10 @@ dropZone.addEventListener('drop', e => {
     dropZone.classList.remove('dragover');
     const file = e.dataTransfer.files[0];
     if (file) loadFile(file);
+});
+
+fileInput.addEventListener('click', () => {
+    fileInput.value = '';
 });
 
 fileInput.addEventListener('change', () => {
@@ -568,7 +590,8 @@ function parseEndpoint(item, folder) {
         }
 
         // ── Responses ──
-        const responses = (item.response || []).filter(Boolean).map(r => {
+        const rawResponses = Array.isArray(item.response) ? item.response : Array.isArray(item.responses) ? item.responses : [];
+        const responses = rawResponses.filter(Boolean).map(r => {
             let bodyText = '';
             if (r.body) {
                 try { bodyText = JSON.stringify(JSON.parse(r.body), null, 2); }
@@ -671,7 +694,9 @@ function buildEndpoint(ep) {
     const methodClass = 'method-' + (ep.method.toUpperCase());
     let html = `<div class="doc-endpoint">`;
 
-    // ── Header ──
+    // ── Request (header + descrição + parâmetros) — bloco que não quebra ──
+    html += `<div class="doc-request-block">`;
+
     html += `<div class="doc-endpoint-header">
         <span class="method-badge ${methodClass}">${esc(ep.method)}</span>
         <span class="doc-url" contenteditable="true" spellcheck="false">${esc(ep.url)}</span>
@@ -709,6 +734,8 @@ function buildEndpoint(ep) {
 
     // ── Raw body (se houver e não foi flattenado) ──
     // (já está representado nos params acima via flattenObj)
+
+    html += `</div>`; // fecha doc-request-block
 
     // ── Responses ──
     if (ep.responses.length > 0) {
@@ -770,7 +797,7 @@ document.getElementById('btn-pdf').addEventListener('click', async () => {
         image:       { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 1.5, useCORS: true, backgroundColor: '#f8f9fa', logging: false },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:   { mode: 'css', avoid: '.doc-endpoint-header, .doc-section-title, .doc-response-header, .doc-folder' },
+        pagebreak:   { mode: 'css', avoid: '.doc-request-block, .doc-endpoint-header, .doc-section-title, .doc-response-header, .doc-folder' },
     };
 
     await html2pdf().set(opt).from(el).save();
