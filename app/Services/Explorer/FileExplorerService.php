@@ -101,12 +101,6 @@ class FileExplorerService
         return $this->sftp->tailFile($connection, $path, $offset);
     }
 
-    public function execTerminal(Connection $connection, string $command, string $cwd): array
-    {
-        // Terminal tem acesso irrestrito — sem guardPath intencional
-        return $this->sftp->execTerminal($connection, $command, $cwd);
-    }
-
     public function getRoot(Connection $connection): string
     {
         return Session::get("explorer.{$connection->id}.root", '/');

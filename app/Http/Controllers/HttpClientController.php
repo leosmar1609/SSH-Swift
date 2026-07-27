@@ -33,11 +33,19 @@ class HttpClientController extends Controller
             $headers[$name] = is_array($value) ? implode(', ', $value) : $value;
         }
 
+        $rawBody = $response->body();
+
+        // Binary bodies (PDF, images, zip, etc.) aren't valid UTF-8, so json_encode
+        // would silently corrupt them — send those as base64 and flag it for the frontend.
+        $isBinary = ! mb_check_encoding($rawBody, 'UTF-8');
+
         return response()->json([
             'status' => $response->status(),
             'statusText' => $response->reason(),
             'headers' => $headers,
-            'body' => $response->body(),
+            'body' => $isBinary ? base64_encode($rawBody) : $rawBody,
+            'bodyEncoding' => $isBinary ? 'base64' : 'text',
+            'bodySize' => strlen($rawBody),
         ]);
     }
 }

@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@4.19.0/css/xterm.css">
 
     <style>
         :root {
@@ -154,20 +153,6 @@
         #log-content .log-info { color: #58a6ff; }
         #log-content .log-ok   { color: #3fb950; }
 
-        /* ── Terminal panel ── */
-        #term-resize-bar { height: 4px; background: var(--border2); cursor: row-resize; flex-shrink: 0; display: none; }
-        #term-resize-bar:hover, #term-resize-bar.dragging { background: var(--blue-dim); }
-        #term-panel { display: none; flex-direction: column; flex-shrink: 0; height: 260px; min-height: 80px; background: #0d1117; }
-        #term-panel.open { display: flex; }
-        #term-header { height: 30px; background: var(--surface); border-bottom: 1px solid var(--border2); border-top: 1px solid var(--border); display: flex; align-items: center; padding: 0 10px; gap: 8px; flex-shrink: 0; font-size: 12px; color: var(--muted); user-select: none; }
-        #term-header i.bi-terminal-fill { color: var(--green); }
-        #term-cwd { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--blue); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #term-close { background: transparent; border: none; color: var(--subtle); cursor: pointer; padding: 2px 5px; border-radius: 3px; font-size: 13px; margin-left: auto; }
-        #term-close:hover { color: var(--red); background: rgba(248,81,73,.12); }
-        #term-container { flex: 1; padding: 4px 0 0 6px; overflow: hidden; }
-        #term-container .xterm { height: 100%; }
-        #term-container .xterm-viewport { overflow-y: auto !important; }
-
         /* ── Status bar ── */
         #status-bar { height: var(--statusbar-h); background: var(--blue-dim); color: rgba(255,255,255,.85); display: flex; align-items: center; padding: 0 10px; font-size: 11.5px; flex-shrink: 0; gap: 12px; }
         .lp-sb-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
@@ -255,7 +240,7 @@
     <div class="lp-topbar-conn">
         <i class="bi bi-hdd-fill" style="color:var(--blue-dim)"></i>
         <strong>{{ $connection->name }}</strong>
-        <span style="color:var(--subtle)">{{ $connection->username }}@{{ $connection->host }}:{{ $connection->port }}</span>
+        <span style="color:var(--subtle)">{{ $connection->username }}&#64;{{ $connection->host }}:{{ $connection->port }}</span>
     </div>
     <div class="lp-topbar-right">
         <button class="lp-icon-btn" data-bs-toggle="modal" data-bs-target="#searchModal" title="Pesquisar (Ctrl+P)">
@@ -287,7 +272,7 @@
             <button class="lp-act-btn" onclick="LP.promptCreateDir()" title="Nova pasta">
                 <i class="bi bi-folder-plus"></i> Pasta
             </button>
-            <button class="lp-act-btn" onclick="LP.terminalToggle()" title="Terminal (Ctrl+`)">
+            <button class="lp-act-btn" onclick="LP.openTerminalTab()" title="Abrir terminal em nova aba (Ctrl+`)">
                 <i class="bi bi-terminal"></i>
             </button>
         </div>
@@ -442,17 +427,6 @@
             </div>
         </div>
 
-        <div id="term-resize-bar"></div>
-
-        <div id="term-panel">
-            <div id="term-header">
-                <i class="bi bi-terminal-fill"></i>
-                <span>Terminal</span>
-                <span id="term-cwd"></span>
-                <button id="term-close" onclick="LP.terminalClose()" title="Fechar terminal"><i class="bi bi-x-lg"></i></button>
-            </div>
-            <div id="term-container"></div>
-        </div>
     </div>
 </div>
 
@@ -464,7 +438,7 @@
     </span>
     <span id="sb-path" style="color:rgba(255,255,255,.6);font-family:'JetBrains Mono',monospace;font-size:11px"></span>
     <div class="lp-sb-right">
-        <button class="lp-sb-term-btn" id="sbTermBtn" onclick="LP.terminalToggle()" title="Terminal (Ctrl+`)">
+        <button class="lp-sb-term-btn" id="sbTermBtn" onclick="LP.openTerminalTab()" title="Abrir terminal em nova aba (Ctrl+`)">
             <i class="bi bi-terminal"></i> Terminal
         </button>
         <span id="sb-lang" style="opacity:.7"></span>
@@ -742,8 +716,6 @@
 {{-- ── Scripts ── --}}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
 <script>var require = { paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs' } };</script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js"></script>
 
@@ -757,8 +729,14 @@ const LP_CFG = {
     host         : '{{ $connection->host }}',
     favorites    : {!! $favorites->map(fn($f) => ['path' => $f->path, 'label' => $f->display_label])->toJson() !!},
     shortcuts    : {!! $shortcuts->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'path' => $s->path, 'icon' => $s->icon])->toJson() !!},
+    pingUrl      : '{{ route('ping') }}',
+    terminalUrl  : '{{ route('connections.terminal', $connection) }}',
 };
 axios.defaults.headers.common['X-CSRF-TOKEN'] = LP_CFG.csrfToken;
+
+// Keep the session alive while this page stays open (Monaco editing generates no
+// requests on its own), so long edit sessions don't hit a 419 on save.
+setInterval(() => { axios.get(LP_CFG.pingUrl).catch(() => {}); }, 10 * 60 * 1000);
 
 // ─── File icons ───────────────────────────────────────────────────────────────
 const FILE_ICONS = {
@@ -822,7 +800,6 @@ const LP = {
         this.setupKeyboardShortcuts();
         this.setupSearchModal();
         this.setupTreeFilter();
-        this.setupTermResizeBar();
         this.openSection('explorerSection');
         await this.connect();
     },
@@ -1151,6 +1128,19 @@ const LP = {
 
         tabState.tabs.push(tab);
         this.switchTab(tabState.tabs.length - 1);
+
+        // Recover content that failed to save earlier due to an expired session
+        const backupKey = 'lp_unsaved_backup:' + data.path;
+        const backup = localStorage.getItem(backupKey);
+        if (backup !== null && backup !== data.content) {
+            if (confirm(`Foi encontrado um backup local não salvo de "${data.name}" (de uma falha de sessão anterior). Restaurar esse conteúdo?`)) {
+                model.setValue(backup);
+                tab.modified = true;
+                document.getElementById('btnSave').disabled = false;
+                document.getElementById('btnSave').classList.add('save-active');
+            }
+            localStorage.removeItem(backupKey);
+        }
     },
 
     switchTab(idx) {
@@ -1243,10 +1233,11 @@ const LP = {
         if (tabState.activeIdx < 0) return;
         const tab = tabState.tabs[tabState.activeIdx];
         if (!tab) return;
+        const content = tab.model.getValue();
 
         try {
             const { data } = await axios.post(`${LP_CFG.apiBase}/file/save`, {
-                path: tab.path, content: tab.model.getValue(),
+                path: tab.path, content,
             });
             if (data.success) {
                 tab.modified = false;
@@ -1258,7 +1249,15 @@ const LP = {
             } else {
                 this.toast('err', data.message);
             }
-        } catch { this.toast('err', 'Erro ao salvar arquivo.'); }
+        } catch (err) {
+            if (err?.response?.status === 419) {
+                // Session/CSRF expired — back up the unsaved content so a page reload doesn't lose it.
+                try { localStorage.setItem('lp_unsaved_backup:' + tab.path, content); } catch {}
+                this.toast('err', 'Sessão expirada. Seu conteúdo foi salvo localmente — recarregue a página (F5) e tente novamente.');
+            } else {
+                this.toast('err', 'Erro ao salvar arquivo.');
+            }
+        }
     },
 
     // ── File operations ───────────────────────────────────────────────────────
@@ -1614,23 +1613,10 @@ const LP = {
     },
 
     // ── Terminal ──────────────────────────────────────────────────────────────
-    terminalOpen(cwd) {
-        document.getElementById('term-panel').classList.add('open');
-        document.getElementById('term-resize-bar').style.display = 'block';
-        document.getElementById('sbTermBtn').classList.add('active');
-        LP_TERM.open(cwd || this.currentPath || treeState.root || '/');
-    },
-
-    terminalClose() {
-        document.getElementById('term-panel').classList.remove('open');
-        document.getElementById('term-resize-bar').style.display = 'none';
-        document.getElementById('sbTermBtn').classList.remove('active');
-    },
-
-    terminalToggle() {
-        document.getElementById('term-panel').classList.contains('open')
-            ? this.terminalClose()
-            : this.terminalOpen();
+    openTerminalTab(cwd) {
+        const path = cwd || this.currentPath || treeState.root || '';
+        const url = LP_CFG.terminalUrl + (path ? '?path=' + encodeURIComponent(path) : '');
+        window.open(url, '_blank', 'noopener');
     },
 
     // ── Search ────────────────────────────────────────────────────────────────
@@ -1683,39 +1669,13 @@ const LP = {
         });
     },
 
-    // ── Terminal resize bar ───────────────────────────────────────────────────
-    setupTermResizeBar() {
-        const bar = document.getElementById('term-resize-bar');
-        let dragging = false, startY = 0, startH = 0;
-
-        bar.addEventListener('mousedown', e => {
-            dragging = true; startY = e.clientY; startH = document.getElementById('term-panel').offsetHeight;
-            bar.classList.add('dragging');
-            document.body.style.cursor = 'row-resize';
-            document.body.style.userSelect = 'none';
-        });
-        document.addEventListener('mousemove', e => {
-            if (!dragging) return;
-            const newH = Math.max(80, Math.min(600, startH + (startY - e.clientY)));
-            document.getElementById('term-panel').style.height = newH + 'px';
-            LP_TERM.fitAddon?.fit();
-        });
-        document.addEventListener('mouseup', () => {
-            if (!dragging) return;
-            dragging = false;
-            bar.classList.remove('dragging');
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-        });
-    },
-
     // ── Keyboard shortcuts ────────────────────────────────────────────────────
     setupKeyboardShortcuts() {
         document.addEventListener('keydown', e => {
             if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); this.saveCurrentFile(); }
             if ((e.ctrlKey || e.metaKey) && e.key === 'w') { e.preventDefault(); if (tabState.activeIdx >= 0) this.closeTab(tabState.activeIdx); }
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); new bootstrap.Modal(document.getElementById('searchModal')).show(); }
-            if ((e.ctrlKey || e.metaKey) && e.key === '`') { e.preventDefault(); this.terminalToggle(); }
+            if ((e.ctrlKey || e.metaKey) && e.key === '`') { e.preventDefault(); this.openTerminalTab(); }
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') LP_CTX.hide(); });
     },
@@ -1830,167 +1790,9 @@ const LP_CTX = {
     promptNewDir()     { this.hide(); LP.promptCreateDir(this.path); },
     promptRename()     { this.hide(); LP.promptRename(this.path, this.type === 'dir'); },
     promptDelete()     { this.hide(); LP.promptDelete(this.path, this.type); },
-    openInTerminal()   { this.hide(); LP.terminalOpen(this.path); },
+    openInTerminal()   { this.hide(); LP.openTerminalTab(this.path); },
     promptShortcut()   { this.hide(); LP.promptAddShortcut(this.path); },
     promptDuplicate()  { this.hide(); LP.promptDuplicate(this.path, this.type); },
-};
-
-// ─── Terminal ─────────────────────────────────────────────────────────────────
-const LP_TERM = {
-    term    : null,
-    fitAddon: null,
-    cwd     : '/',
-    line    : '',
-    history : [],
-    histIdx : -1,
-    busy    : false,
-    ready   : false,
-
-    open(initialCwd) {
-        this.cwd = initialCwd || treeState.root || '/';
-        document.getElementById('term-cwd').textContent = this.cwd;
-
-        if (this.ready) {
-            this.term.focus();
-            this.fitAddon.fit();
-            return;
-        }
-
-        this.ready = true;
-
-        this.term = new Terminal({
-            theme: {
-                background   : '#0d1117',
-                foreground   : '#e6edf3',
-                cursor       : '#58a6ff',
-                selection    : '#1f6feb55',
-                black        : '#0d1117',
-                red          : '#f85149',
-                green        : '#3fb950',
-                yellow       : '#e3b341',
-                blue         : '#58a6ff',
-                magenta      : '#bc8cff',
-                cyan         : '#39c5cf',
-                white        : '#b1bac4',
-                brightBlack  : '#6e7681',
-                brightBlue   : '#79c0ff',
-                brightGreen  : '#56d364',
-                brightWhite  : '#e6edf3',
-            },
-            fontFamily  : "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-            fontSize    : 13,
-            lineHeight  : 1.4,
-            cursorBlink : true,
-            cursorStyle : 'block',
-            scrollback  : 2000,
-        });
-
-        this.fitAddon = new FitAddon.FitAddon();
-        this.term.loadAddon(this.fitAddon);
-        this.term.open(document.getElementById('term-container'));
-
-        requestAnimationFrame(() => {
-            this.fitAddon.fit();
-            this.printPrompt();
-            this.term.focus();
-        });
-
-        this.bindKeys();
-        window.addEventListener('resize', () => this.fitAddon?.fit());
-    },
-
-    printPrompt() {
-        document.getElementById('term-cwd').textContent = this.cwd;
-        this.term.write(`\x1b[32m${LP_CFG.username}@${LP_CFG.host}\x1b[0m:\x1b[34m${this.cwd}\x1b[0m\$ `);
-    },
-
-    bindKeys() {
-        this.term.onKey(({ key, domEvent: ev }) => {
-            if (this.busy) {
-                if (ev.ctrlKey && ev.keyCode === 67) {
-                    this.term.write('\x1b[31m^C\x1b[0m\r\n');
-                    this.busy = false;
-                    this.printPrompt();
-                }
-                return;
-            }
-
-            const printable = !ev.altKey && !ev.ctrlKey && !ev.metaKey;
-
-            if      (ev.keyCode === 13) { this.execute(); }
-            else if (ev.keyCode ===  8) { if (this.line.length > 0) { this.line = this.line.slice(0,-1); this.term.write('\b \b'); } }
-            else if (ev.keyCode === 38) { this.histUp(); }
-            else if (ev.keyCode === 40) { this.histDown(); }
-            else if (ev.ctrlKey && ev.keyCode === 67) { this.term.write('\x1b[31m^C\x1b[0m\r\n'); this.line = ''; this.printPrompt(); }
-            else if (ev.ctrlKey && ev.keyCode === 76) { this.term.clear(); this.line = ''; this.printPrompt(); }
-            else if (ev.ctrlKey && ev.keyCode === 85) { this.term.write('\r\x1b[K'); this.printPrompt(); this.line = ''; }
-            else if (printable) { this.line += key; this.term.write(key); }
-        });
-    },
-
-    histUp() {
-        if (!this.history.length) return;
-        if (this.histIdx === -1) this.histIdx = this.history.length - 1;
-        else if (this.histIdx > 0) this.histIdx--;
-        this.setLine(this.history[this.histIdx]);
-    },
-
-    histDown() {
-        if (this.histIdx === -1) return;
-        if (this.histIdx < this.history.length - 1) { this.histIdx++; this.setLine(this.history[this.histIdx]); }
-        else { this.histIdx = -1; this.setLine(''); }
-    },
-
-    setLine(text) {
-        this.term.write('\r\x1b[K');
-        this.printPrompt();
-        this.line = text;
-        this.term.write(text);
-    },
-
-    async execute() {
-        const cmd = this.line.trim();
-        this.term.write('\r\n');
-
-        if (!cmd) { this.printPrompt(); return; }
-
-        if (this.history[this.history.length - 1] !== cmd) this.history.push(cmd);
-        this.histIdx = -1;
-        this.line    = '';
-        this.busy    = true;
-
-        if (cmd === 'clear' || cmd === 'cls') {
-            this.term.clear();
-            this.busy = false;
-            this.printPrompt();
-            return;
-        }
-
-        try {
-            const { data } = await axios.post(`${LP_CFG.apiBase}/terminal`, {
-                command: cmd,
-                cwd    : this.cwd,
-            });
-
-            if (data.output) {
-                const out = data.output
-                    .replace(/\r\n/g, '\n')
-                    .replace(/\r/g, '\n')
-                    .replace(/\n/g, '\r\n');
-                this.term.write(out);
-                if (!data.output.endsWith('\n')) this.term.write('\r\n');
-            }
-
-            if (data.cwd) {
-                this.cwd = data.cwd;
-            }
-        } catch (e) {
-            this.term.write(`\x1b[31mErro: ${e.message}\x1b[0m\r\n`);
-        }
-
-        this.busy = false;
-        this.printPrompt();
-    },
 };
 
 // ─── Log tail viewer ─────────────────────────────────────────────────────────

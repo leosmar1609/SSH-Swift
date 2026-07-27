@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\ConnectionController;
 use App\Http\Controllers\ExplorerController;
+use App\Http\Controllers\TerminalController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,6 +22,10 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/', fn() => redirect()->route('connections.index'));
 
+    // Keep-alive ping — hit periodically from long-lived pages (editor, terminal)
+    // so the session's last-activity keeps refreshing and CSRF tokens don't go stale.
+    Route::get('/ping', fn() => response()->noContent())->name('ping');
+
     // ── Connections (CRUD) ───────────────────────────────────────────────────
     Route::resource('connections', ConnectionController::class);
 
@@ -32,6 +37,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('connections/{connection}/duplicate', [ConnectionController::class, 'duplicate'])
         ->name('connections.duplicate');
+
+    Route::get('connections/{connection}/terminal', [TerminalController::class, 'openTab'])
+        ->name('connections.terminal');
 
     // ── Explorer (File Manager IDE) ──────────────────────────────────────────
     Route::prefix('explorer/{connection}')->name('explorer.')->group(function () {
@@ -51,7 +59,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/fs/rename',    [ExplorerController::class, 'rename'])        ->name('fs.rename');
         Route::delete('/fs/delete',  [ExplorerController::class, 'delete'])        ->name('fs.delete');
         Route::post('/fs/duplicate', [ExplorerController::class, 'duplicateFile'])->name('fs.duplicate');
-        Route::post('/terminal',     [ExplorerController::class, 'terminal'])     ->name('terminal');
 
         Route::post('/shortcuts',              [ExplorerController::class, 'addShortcut'])    ->name('shortcuts.add');
         Route::delete('/shortcuts/{shortcut}', [ExplorerController::class, 'removeShortcut'])->name('shortcuts.remove');

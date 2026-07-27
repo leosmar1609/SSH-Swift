@@ -247,29 +247,6 @@ class SFTPService
         }
     }
 
-    public function execTerminal(Connection $connection, string $command, string $cwd): array
-    {
-        $ssh = $this->ssh($connection);
-        $ssh->setTimeout(30);
-
-        $script = "cd " . escapeshellarg($cwd) . " 2>/dev/null || true\n"
-            . $command . "\n"
-            . 'echo "__LP_CWD__$(pwd)__LP_CWD_END__"';
-
-        $b64    = base64_encode($script);
-        $output = $ssh->exec("echo {$b64} | base64 -d | bash 2>&1");
-        $ssh->disconnect();
-
-        preg_match('/__LP_CWD__(.+?)__LP_CWD_END__/', $output, $m);
-        $newCwd      = isset($m[1]) ? trim($m[1]) : $cwd;
-        $cleanOutput = preg_replace('/__LP_CWD__.*?__LP_CWD_END__\n?/', '', $output);
-
-        return [
-            'output' => rtrim($cleanOutput),
-            'cwd'    => $newCwd,
-        ];
-    }
-
     private function sftp(Connection $connection): SFTP
     {
         $sftp = new SFTP($connection->host, $connection->port, self::TIMEOUT);

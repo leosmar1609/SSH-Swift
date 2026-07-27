@@ -207,24 +207,6 @@ class ExplorerController extends Controller
         }
     }
 
-    public function terminal(Connection $connection, Request $request): JsonResponse
-    {
-        $request->validate([
-            'command' => ['required', 'string', 'max:4000'],
-            'cwd'     => ['required', 'string'],
-        ]);
-        try {
-            $result = $this->explorer->execTerminal(
-                $connection,
-                $request->input('command'),
-                $request->input('cwd'),
-            );
-            return response()->json(['success' => true, ...$result]);
-        } catch (Throwable $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
-        }
-    }
-
     public function tailLog(Connection $connection, Request $request): JsonResponse
     {
         $request->validate([

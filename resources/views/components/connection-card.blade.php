@@ -74,8 +74,19 @@
         {{-- Footer com ações --}}
         <div class="lp-card-footer" style="gap:.5rem">
             <a href="{{ route('explorer.show', $connection) }}" class="btn-lp-primary" style="flex:1;justify-content:center">
+                <i class="bi bi-folder2-open"></i>
+                Explorer
+            </a>
+
+            {{-- Terminal (abre em nova aba, PTY interativo) --}}
+            <a
+                href="{{ route('connections.terminal', $connection) }}"
+                target="_blank"
+                rel="noopener"
+                class="btn-lp-secondary lp-icon-btn-sm"
+                title="Abrir terminal em nova aba"
+            >
                 <i class="bi bi-terminal-fill"></i>
-                Conectar
             </a>
 
             {{-- Testar --}}

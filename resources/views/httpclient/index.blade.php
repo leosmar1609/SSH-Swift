@@ -600,6 +600,9 @@
                     <div class="res-body-tabs">
                         <div class="res-body-tab active" data-res-tab="pretty">Pretty</div>
                         <div class="res-body-tab" data-res-tab="raw">Raw</div>
+                        <a class="lp-icon-btn res-body-copy" id="btn-download-body" style="font-size:11px;padding:3px 8px;display:none" download>
+                            <i class="bi bi-download"></i> Baixar
+                        </a>
                         <button class="lp-icon-btn res-body-copy" id="btn-copy-body" style="font-size:11px;padding:3px 8px">
                             <i class="bi bi-clipboard"></i> Copiar
                         </button>
@@ -1316,7 +1319,8 @@ async function sendRequest() {
         const data = await response.json();
         const status = data.status || response.status;
         const text = data.body || '';
-        const size = new TextEncoder().encode(text).length;
+        const bodyEncoding = data.bodyEncoding === 'base64' ? 'base64' : 'text';
+        const size = typeof data.bodySize === 'number' ? data.bodySize : new TextEncoder().encode(text).length;
         const resHeaders = data.headers || {};
 
         // Add to history
@@ -1327,9 +1331,9 @@ async function sendRequest() {
 
         setActiveResponseState({
             type: 'response',
-            payload: {status, statusText: data.statusText || '', elapsed, size, headers: resHeaders, body: text}
+            payload: {status, statusText: data.statusText || '', elapsed, size, headers: resHeaders, body: text, bodyEncoding}
         });
-        showResponse({status, statusText: data.statusText || '', elapsed, size, headers: resHeaders, body: text});
+        showResponse({status, statusText: data.statusText || '', elapsed, size, headers: resHeaders, body: text, bodyEncoding});
 
     } catch (err) {
         const elapsed = Math.round(performance.now() - t0);
@@ -1400,7 +1404,28 @@ function showError(title, msg) {
     setActiveResponseState({ type: 'error', title, message: msg });
 }
 
-function showResponse({status, statusText, elapsed, size, headers, body}) {
+let currentBlobUrl = null;
+
+function base64ToBlob(base64, contentType) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: contentType || 'application/octet-stream' });
+}
+
+function guessFileName(contentType, headers) {
+    const disposition = headers['content-disposition'] || headers['Content-Disposition'] || '';
+    const match = disposition.match(/filename="?([^";]+)"?/i);
+    if (match) return match[1];
+    const extMap = {
+        'application/pdf': '.pdf', 'image/png': '.png', 'image/jpeg': '.jpg', 'image/gif': '.gif',
+        'image/webp': '.webp', 'image/svg+xml': '.svg', 'application/zip': '.zip',
+    };
+    const ext = extMap[(contentType || '').split(';')[0].trim()] || '.bin';
+    return 'response' + ext;
+}
+
+function showResponse({status, statusText, elapsed, size, headers, body, bodyEncoding}) {
     document.getElementById('res-empty').style.display   = 'none';
     document.getElementById('res-loading').style.display = 'none';
     document.getElementById('res-error').style.display   = 'none';
@@ -1433,13 +1458,51 @@ function showResponse({status, statusText, elapsed, size, headers, body}) {
         hdrBody.appendChild(row);
     });
 
+    const ct = (headers['content-type'] || headers['Content-Type'] || '');
+    const downloadBtn = document.getElementById('btn-download-body');
+    const copyBtn = document.getElementById('btn-copy-body');
+
+    if (currentBlobUrl) { URL.revokeObjectURL(currentBlobUrl); currentBlobUrl = null; }
+
+    if (bodyEncoding === 'base64') {
+        // Binary body (PDF, image, zip, ...) — can't render as text, preview or offer download instead.
+        const blob = base64ToBlob(body, ct);
+        currentBlobUrl = URL.createObjectURL(blob);
+        const fileName = guessFileName(ct, headers);
+
+        let previewHtml;
+        if (ct.startsWith('application/pdf')) {
+            previewHtml = `<iframe src="${currentBlobUrl}" style="width:100%;height:100%;min-height:400px;border:none;background:#fff"></iframe>`;
+        } else if (ct.startsWith('image/')) {
+            previewHtml = `<div style="padding:14px"><img src="${currentBlobUrl}" style="max-width:100%;border-radius:6px"></div>`;
+        } else {
+            previewHtml = `<div style="padding:24px;color:var(--muted);font-size:12.5px">
+                <i class="bi bi-file-earmark-binary" style="font-size:28px;color:var(--subtle);display:block;margin-bottom:10px"></i>
+                Conteúdo binário (${esc(ct || 'tipo desconhecido')}) — sem pré-visualização. Use o botão Baixar.
+            </div>`;
+        }
+
+        document.getElementById('panel-pretty').innerHTML = `<div class="fade-in" style="height:100%">${previewHtml}</div>`;
+        document.getElementById('panel-raw').innerHTML = `<div class="fade-in" style="padding:24px;color:var(--muted);font-size:12.5px">Conteúdo binário — veja a pré-visualização na aba Pretty ou baixe o arquivo.</div>`;
+
+        downloadBtn.style.display = '';
+        downloadBtn.href = currentBlobUrl;
+        downloadBtn.download = fileName;
+        copyBtn.style.display = 'none';
+
+        setActiveResponseState({ type: 'response', payload: {status, statusText, elapsed, size, headers, body, bodyEncoding} });
+        return;
+    }
+
+    downloadBtn.style.display = 'none';
+    copyBtn.style.display = '';
+
     // Body
     let prettyHtml = '';
     let rawText = body;
     let parsedJson = null;
 
     // Try JSON
-    const ct = (headers['content-type'] || headers['Content-Type'] || '');
     if (ct.includes('json') || (body && body.trim().match(/^[\[{]/))) {
         try {
             parsedJson = JSON.parse(body);
@@ -1455,7 +1518,7 @@ function showResponse({status, statusText, elapsed, size, headers, body}) {
 
     document.getElementById('panel-pretty').innerHTML = `<div class="fade-in">${prettyHtml}</div>`;
     document.getElementById('panel-raw').innerHTML    = `<pre class="raw-out fade-in">${esc(body)}</pre>`;
-    setActiveResponseState({ type: 'response', payload: {status, statusText, elapsed, size, headers, body} });
+    setActiveResponseState({ type: 'response', payload: {status, statusText, elapsed, size, headers, body, bodyEncoding} });
 }
 
 // Copy body
