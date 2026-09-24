@@ -7,7 +7,7 @@
 <div class="lp-page-header">
     <div>
         <h1 class="lp-page-title">Novo Usuário</h1>
-        <p class="lp-page-subtitle">Crie um novo acesso ao LeoPanel</p>
+        <p class="lp-page-subtitle">Crie um novo acesso ao TechIA Panel</p>
     </div>
     <a href="{{ route('users.index') }}" class="btn-lp-secondary">
         <i class="bi bi-arrow-left"></i>

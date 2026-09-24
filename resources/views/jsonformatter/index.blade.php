@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON Formatter — LeoPanel</title>
+    <title>JSON Formatter — TechIA Panel</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -510,7 +510,7 @@ function downloadJson() {
 
 function loadSample() {
     document.getElementById('input-area').value = JSON.stringify({
-        "nome": "LeoPanel",
+        "nome": "TechIA Panel",
         "versao": "1.0.0",
         "descricao": "Painel SSH privado",
         "autor": { "nome": "Leonardo", "email": "leo@example.com" },

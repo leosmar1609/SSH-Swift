@@ -13,19 +13,18 @@ class UpdateConnectionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        return array_merge([
             'name'           => ['required', 'string', 'max:100'],
             'host'           => ['required', 'string', 'max:255'],
             'port'           => ['required', 'integer', 'min:1', 'max:65535'],
             'username'       => ['required', 'string', 'max:100'],
-            'ssh_key'        => ['nullable', 'file', 'max:512'],
             'startup_script' => ['nullable', 'string', 'max:5000'],
-        ];
+        ], ConnectionAuthRules::rules(isCreate: false));
     }
 
     public function messages(): array
     {
-        return [
+        return array_merge([
             'name.required'     => 'O nome da conexão é obrigatório.',
             'host.required'     => 'O host/IP é obrigatório.',
             'port.required'     => 'A porta SSH é obrigatória.',
@@ -33,8 +32,6 @@ class UpdateConnectionRequest extends FormRequest
             'port.min'          => 'A porta deve ser no mínimo 1.',
             'port.max'          => 'A porta deve ser no máximo 65535.',
             'username.required' => 'O usuário SSH é obrigatório.',
-            'ssh_key.file'      => 'O campo chave SSH deve ser um arquivo válido.',
-            'ssh_key.max'       => 'A chave SSH não pode ultrapassar 512KB.',
-        ];
+        ], ConnectionAuthRules::messages());
     }
 }

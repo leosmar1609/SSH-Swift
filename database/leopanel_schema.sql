@@ -1,5 +1,5 @@
 -- ============================================================
--- LeoPanel — Schema completo para importar no phpMyAdmin
+-- TechIA Panel — Schema completo para importar no phpMyAdmin
 -- Criado em 2026-06-30
 -- ============================================================
 
@@ -112,6 +112,8 @@ CREATE TABLE IF NOT EXISTS `connections` (
   `host` varchar(255) NOT NULL,
   `port` smallint unsigned NOT NULL DEFAULT '22',
   `username` varchar(255) NOT NULL,
+  `auth_type` varchar(255) NOT NULL DEFAULT 'key',
+  `password` text DEFAULT NULL,
   `ssh_key_path` varchar(255) DEFAULT NULL,
   `startup_script` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,

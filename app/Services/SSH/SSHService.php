@@ -21,9 +21,11 @@ class SSHService
     {
         $ssh = new SSH2($connection->host, $connection->port, self::CONNECT_TIMEOUT);
 
-        $key = $this->loadPrivateKey($connection);
+        $credential = $connection->auth_type === 'password'
+            ? $this->loadPassword($connection)
+            : $this->loadPrivateKey($connection);
 
-        if (! $ssh->login($connection->username, $key)) {
+        if (! $ssh->login($connection->username, $credential)) {
             throw new RuntimeException($this->resolveAuthError($ssh));
         }
 
@@ -110,6 +112,15 @@ class SSHService
         }
     }
 
+    private function loadPassword(Connection $connection): string
+    {
+        if (empty($connection->password)) {
+            throw new RuntimeException('Nenhuma senha configurada para esta conexão.');
+        }
+
+        return $connection->password;
+    }
+
     private function loadPrivateKey(Connection $connection): mixed
     {
         if (empty($connection->ssh_key_path)) {
@@ -142,9 +153,9 @@ class SSHService
         }
 
         if (str_contains(strtolower($lastError), 'authentication')) {
-            return 'Falha na autenticação. Verifique o usuário e a chave SSH.';
+            return 'Falha na autenticação. Verifique o usuário e a senha/chave SSH.';
         }
 
-        return 'Falha ao autenticar. Usuário ou chave SSH inválidos.';
+        return 'Falha ao autenticar. Usuário, senha ou chave SSH inválidos.';
     }
 }

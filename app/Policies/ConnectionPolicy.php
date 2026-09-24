@@ -11,7 +11,7 @@ class ConnectionPolicy
     use HandlesAuthorization;
 
     /**
-     * LeoPanel é privado — toda action é permitida sem restrições de usuário nesta fase.
+     * TechIA Panel é privado — toda action é permitida sem restrições de usuário nesta fase.
      * Quando autenticação multi-usuário for implementada, refinar este Policy.
      */
     public function before(?User $user): bool

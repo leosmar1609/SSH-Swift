@@ -11,11 +11,19 @@
             {{ $connections->count() }} {{ $connections->count() === 1 ? 'conexão cadastrada' : 'conexões cadastradas' }}
         </p>
     </div>
-    <a href="{{ route('connections.create') }}" class="btn-lp-primary">
-        <i class="bi bi-plus-lg"></i>
-        Nova Conexão
-    </a>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn-lp-secondary" data-bs-toggle="modal" data-bs-target="#quickConnectModal">
+            <i class="bi bi-lightning-charge-fill"></i>
+            Conectar por IP
+        </button>
+        <a href="{{ route('connections.create') }}" class="btn-lp-primary">
+            <i class="bi bi-plus-lg"></i>
+            Nova Conexão
+        </a>
+    </div>
 </div>
+
+@include('components.quick-connect-modal')
 
 @if($connections->isEmpty())
     <div class="lp-empty">

@@ -57,7 +57,7 @@ class ConnectionService
 
     public function duplicate(Connection $connection): Connection
     {
-        $data = $connection->only(['host', 'port', 'username', 'startup_script']);
+        $data = $connection->only(['host', 'port', 'username', 'auth_type', 'password', 'startup_script']);
         $data['name']    = $connection->name . ' - copy';
         $data['user_id'] = auth()->id();
 

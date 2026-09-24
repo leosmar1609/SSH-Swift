@@ -33,14 +33,16 @@ class TerminalPtyService
         $ssh->setWindowSize($cols, $rows);
 
         try {
-            $key = $this->loadKey($connection);
+            $credential = $connection->auth_type === 'password'
+                ? $this->loadPassword($connection)
+                : $this->loadKey($connection);
         } catch (Throwable $e) {
             $this->writeControl('ERROR ' . $e->getMessage());
 
             return;
         }
 
-        if (! $ssh->login($connection->username, $key)) {
+        if (! $ssh->login($connection->username, $credential)) {
             $this->writeControl('ERROR Falha na autenticação SSH.');
 
             return;
@@ -151,6 +153,15 @@ class TerminalPtyService
     {
         fwrite(STDOUT, "\x00" . $message . "\n");
         fflush(STDOUT);
+    }
+
+    private function loadPassword(Connection $connection): string
+    {
+        if (empty($connection->password)) {
+            throw new RuntimeException('Nenhuma senha configurada para esta conexão.');
+        }
+
+        return $connection->password;
     }
 
     private function loadKey(Connection $connection): mixed

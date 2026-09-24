@@ -41,7 +41,7 @@ class TerminalServe extends Command
 
         $worker = new Worker("websocket://0.0.0.0:{$port}");
         $worker->count = 1;
-        $worker->name = 'leopanel-terminal';
+        $worker->name = 'techiapanel-terminal';
 
         $worker->onWebSocketConnect = function (TcpConnection $connection, Request $request) {
             $this->authenticate($connection, $request);

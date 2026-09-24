@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>HTTP Client — LeoPanel</title>
+    <title>HTTP Client — TechIA Panel</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -647,7 +647,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════════
-// LeoPanel HTTP Client — State & Storage
+// TechIA Panel HTTP Client — State & Storage
 // ═══════════════════════════════════════════════════════════════
 
 const LS_COLLECTIONS = 'lp_httpclient_collections';
@@ -1747,7 +1747,7 @@ function downloadCollection(collId) {
         info: {
             name: coll.name,
             _postman_id: uid(),
-            description: 'Exported from LeoPanel HTTP Client',
+            description: 'Exported from TechIA Panel HTTP Client',
             schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
         },
         item: (coll.items || []).map(buildPostmanCollectionItem)

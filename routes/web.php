@@ -41,6 +41,10 @@ Route::middleware('auth')->group(function () {
     Route::get('connections/{connection}/terminal', [TerminalController::class, 'openTab'])
         ->name('connections.terminal');
 
+    // ── Quick connect (creates a Connection on the fly, then opens Explorer) ──
+    Route::post('connections/quick-connect', [ConnectionController::class, 'quickConnect'])
+        ->name('connections.quick-connect');
+
     // ── Explorer (File Manager IDE) ──────────────────────────────────────────
     Route::prefix('explorer/{connection}')->name('explorer.')->group(function () {
 

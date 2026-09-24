@@ -49,15 +49,19 @@
 
             </div>
 
-            {{-- Chave SSH --}}
+            {{-- Método de autenticação --}}
             <div class="mt-2" style="display:flex;align-items:center;gap:.4rem">
-                @if($connection->ssh_key_path)
+                @if($connection->auth_type === 'password')
+                    <span style="font-size:11.5px;color:#3fb950;display:inline-flex;align-items:center;gap:.3rem">
+                        <i class="bi bi-shield-lock-fill"></i> Senha configurada
+                    </span>
+                @elseif($connection->ssh_key_path)
                     <span style="font-size:11.5px;color:#3fb950;display:inline-flex;align-items:center;gap:.3rem">
                         <i class="bi bi-key-fill"></i> Chave SSH configurada
                     </span>
                 @else
                     <span style="font-size:11.5px;color:var(--lp-orange);display:inline-flex;align-items:center;gap:.3rem">
-                        <i class="bi bi-exclamation-triangle-fill"></i> Sem chave SSH
+                        <i class="bi bi-exclamation-triangle-fill"></i> Sem credencial configurada
                     </span>
                 @endif
 

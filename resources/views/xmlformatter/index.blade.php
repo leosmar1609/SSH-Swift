@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XML / HTML Formatter — LeoPanel</title>
+    <title>XML / HTML Formatter — TechIA Panel</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -551,8 +551,8 @@ function loadSampleHTML() {
     document.getElementById('input-area').value =
         '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Exemplo</title></head>' +
         '<body><header><nav><ul><li><a href="/">Início</a></li><li><a href="/sobre">Sobre</a></li></ul></nav></header>' +
-        '<main><section id="hero"><h1>Olá, Mundo!</h1><p>Formatado pelo <strong>LeoPanel</strong>.</p></section></main>' +
-        '<footer><p>© 2026 LeoPanel</p></footer></body></html>';
+        '<main><section id="hero"><h1>Olá, Mundo!</h1><p>Formatado pelo <strong>TechIA Panel</strong>.</p></section></main>' +
+        '<footer><p>© 2026 TechIA Panel</p></footer></body></html>';
     doFormat();
 }
 

@@ -10,7 +10,7 @@ class AdminSeeder extends Seeder
     public function run(): void
     {
         User::firstOrCreate(
-            ['email' => 'admin@leopanel.local'],
+            ['email' => 'admin@techiapanel.local'],
             [
                 'name'     => 'Admin',
                 'password' => 'password123',

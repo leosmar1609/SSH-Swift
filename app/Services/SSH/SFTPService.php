@@ -3,6 +3,7 @@
 namespace App\Services\SSH;
 
 use App\Models\Connection;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
@@ -21,11 +22,13 @@ class SFTPService
 
     public function listDirectory(Connection $connection, string $path): array
     {
-        $sftp   = $this->sftp($connection);
-        $raw    = $sftp->rawlist($path);
+        $sftp = $this->sftp($connection);
+        $raw  = $sftp->rawlist($path);
 
+        // Plain SFTP is denied by directories the login user can't read (e.g. root-owned
+        // dirs on a box without a passwordless-sudo setup) — retry once, elevated.
         if ($raw === false) {
-            throw new RuntimeException("Não foi possível listar '{$path}'. Verifique permissões.");
+            return $this->listDirectoryElevated($connection, $path);
         }
 
         $entries = [];
@@ -48,20 +51,7 @@ class SFTPService
             ];
         }
 
-        usort($entries, function (array $a, array $b): int {
-            if ($a['type'] !== $b['type']) {
-                return $a['type'] === 'dir' ? -1 : 1;
-            }
-
-            // Hidden files (dotfiles) go after regular
-            $aHidden = str_starts_with($a['name'], '.');
-            $bHidden = str_starts_with($b['name'], '.');
-            if ($aHidden !== $bHidden) {
-                return $aHidden ? 1 : -1;
-            }
-
-            return strcasecmp($a['name'], $b['name']);
-        });
+        $this->sortEntries($entries);
 
         return $entries;
     }
@@ -71,15 +61,22 @@ class SFTPService
         $sftp = $this->sftp($connection);
         $stat = $sftp->stat($path);
 
-        if (! $stat) {
-            throw new RuntimeException("Arquivo não encontrado: {$path}");
+        $content = $stat ? $sftp->get($path) : false;
+
+        if (! $stat || $content === false) {
+            return $this->finishReadFile($this->readFileElevated($connection, $path));
         }
 
-        $content = $sftp->get($path);
+        return $this->finishReadFile([
+            'content'  => $content,
+            'size'     => $stat['size'] ?? 0,
+            'modified' => $stat['mtime'] ?? 0,
+        ]);
+    }
 
-        if ($content === false) {
-            throw new RuntimeException("Sem permissão para ler: {$path}");
-        }
+    private function finishReadFile(array $file): array
+    {
+        $content = $file['content'];
 
         // Reject binary files
         if (str_contains(substr($content, 0, 8000), "\x00")) {
@@ -87,13 +84,106 @@ class SFTPService
         }
 
         if (! mb_check_encoding($content, 'UTF-8')) {
-            $content = mb_convert_encoding($content, 'UTF-8', 'auto');
+            $file['content'] = mb_convert_encoding($content, 'UTF-8', 'auto');
+        }
+
+        return $file;
+    }
+
+    /**
+     * Fallback for directories the login user can't read via plain SFTP — re-lists via
+     * an elevated `find`, authenticating sudo with the connection's stored password
+     * when it has one (see sudoExec()). Machine-readable output (tab-separated, one
+     * find -printf directive per column) instead of parsing `ls -la` text.
+     */
+    private function listDirectoryElevated(Connection $connection, string $path): array
+    {
+        $ssh = $this->ssh($connection);
+        $ssh->setTimeout(15);
+
+        $safePath = escapeshellarg($path);
+        $inner = "find {$safePath} -mindepth 1 -maxdepth 1 -printf '%f\t%y\t%s\t%T@\t%m\n' 2>/dev/null; echo \"__LP_EXIT__$?\"";
+
+        $output = $this->sudoExec($ssh, $connection, $inner);
+        $ssh->disconnect();
+
+        if (! preg_match('/__LP_EXIT__(\d+)\s*$/', trim($output), $m) || $m[1] !== '0') {
+            throw new RuntimeException("Não foi possível listar '{$path}'. Verifique permissões.");
+        }
+
+        $body = preg_replace('/__LP_EXIT__\d+\s*$/', '', $output);
+
+        $entries = [];
+
+        foreach (explode("\n", $body) as $line) {
+            $line = rtrim($line, "\r");
+            if ($line === '') {
+                continue;
+            }
+
+            $parts = explode("\t", $line);
+            if (count($parts) < 5) {
+                continue;
+            }
+
+            [$name, $type, $size, $mtime, $mode] = $parts;
+            $isDir = $type === 'd';
+
+            $entries[] = [
+                'name'        => $name,
+                'type'        => $isDir ? 'dir' : 'file',
+                'size'        => (int) $size,
+                'modified'    => (int) (float) $mtime,
+                'permissions' => $this->permsFromOctal($mode, $isDir),
+                'extension'   => $isDir ? null : strtolower(pathinfo($name, PATHINFO_EXTENSION)),
+            ];
+        }
+
+        $this->sortEntries($entries);
+
+        return $entries;
+    }
+
+    /**
+     * Fallback for files the login user can't read via plain SFTP — fetches
+     * size/mtime and content (base64-encoded over the wire, so binary-safe and
+     * immune to marker-collision issues a text-based transfer would risk)
+     * through an elevated shell instead.
+     */
+    private function readFileElevated(Connection $connection, string $path): array
+    {
+        $ssh = $this->ssh($connection);
+        $ssh->setTimeout(15);
+        $safePath = escapeshellarg($path);
+
+        // One exec() call for both stat and content — sudoExec() enables a PTY (see
+        // its docblock), and phpseclib3 doesn't support a second exec() on the same
+        // connection while a PTY channel is open without explicitly tearing it down
+        // first, so this avoids reusing $ssh for a second command. "__LP_SEP__"
+        // can't collide with the base64 blob after it (base64's alphabet has no
+        // underscores), so splitting on it is unambiguous.
+        $output = $this->sudoExec($ssh, $connection,
+            "stat -c '%s %Y' {$safePath} 2>/dev/null; echo '__LP_SEP__'; base64 {$safePath} 2>/dev/null"
+        );
+        $ssh->disconnect();
+
+        [$statPart, $b64Part] = array_pad(explode('__LP_SEP__', $output, 2), 2, '');
+        $stat = array_pad(array_map('trim', explode(' ', trim($statPart))), 2, null);
+
+        if (! is_numeric($stat[0])) {
+            throw new RuntimeException("Arquivo não encontrado: {$path}");
+        }
+
+        $content = $this->decodeSudoBase64($b64Part);
+
+        if ($content === false) {
+            throw new RuntimeException("Sem permissão para ler: {$path}");
         }
 
         return [
             'content'  => $content,
-            'size'     => $stat['size'] ?? 0,
-            'modified' => $stat['mtime'] ?? 0,
+            'size'     => (int) $stat[0],
+            'modified' => (int) $stat[1],
         ];
     }
 
@@ -114,8 +204,8 @@ class SFTPService
         $safeTmp  = escapeshellarg($tempPath);
         $safeDest = escapeshellarg($path);
 
-        $output = $ssh->exec(
-            "if sudo bash -c \"cat {$safeTmp} > {$safeDest}\"; then echo '__LP_OK__'; else echo '__LP_ERR__'; fi; sudo rm -f {$safeTmp}"
+        $output = $this->sudoExec($ssh, $connection,
+            "if cat {$safeTmp} > {$safeDest}; then echo '__LP_OK__'; else echo '__LP_ERR__'; fi; rm -f {$safeTmp}"
         );
 
         $ssh->disconnect();
@@ -157,7 +247,7 @@ class SFTPService
         $size = $sftp->filesize($path);
 
         if ($size === false) {
-            throw new RuntimeException("Arquivo não encontrado: {$path}");
+            return $this->tailFileElevated($connection, $path, $offset);
         }
 
         // First load: start from last 200 KB so the viewer opens fast
@@ -187,11 +277,59 @@ class SFTPService
         ];
     }
 
+    private function tailFileElevated(Connection $connection, string $path, int $offset): array
+    {
+        $safePath = escapeshellarg($path);
+
+        // Two separate connections rather than two exec() calls on one — see the
+        // comment in readFileElevated() on why a single connection can't safely
+        // run a second sudoExec() once the first has opened a PTY channel.
+        $sshStat = $this->ssh($connection);
+        $sshStat->setTimeout(15);
+        $sizeOut = trim($this->sudoExec($sshStat, $connection, "stat -c '%s' {$safePath} 2>/dev/null"));
+        $sshStat->disconnect();
+
+        if (! is_numeric($sizeOut)) {
+            throw new RuntimeException("Arquivo não encontrado: {$path}");
+        }
+
+        $size = (int) $sizeOut;
+
+        if ($offset === 0 && $size > 204800) {
+            $offset = $size - 204800;
+        }
+
+        if ($offset > $size) {
+            $offset = 0;
+        }
+
+        if ($offset >= $size) {
+            return ['content' => '', 'size' => $size, 'offset' => $offset];
+        }
+
+        $sshRead = $this->ssh($connection);
+        $sshRead->setTimeout(15);
+        $b64 = $this->sudoExec($sshRead, $connection, 'tail -c +' . ($offset + 1) . " {$safePath} 2>/dev/null | base64 -w0");
+        $sshRead->disconnect();
+
+        $content = $this->decodeSudoBase64($b64);
+
+        if ($content === false) {
+            throw new RuntimeException("Sem permissão para ler: {$path}");
+        }
+
+        return [
+            'content' => $content,
+            'size'    => $size,
+            'offset'  => $offset + strlen($content),
+        ];
+    }
+
     public function copyFile(Connection $connection, string $from, string $to): void
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
-        $output = $ssh->exec('sudo cp -r ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'cp -r ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
@@ -203,7 +341,7 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(10);
-        $output = $ssh->exec('sudo touch ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'touch ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
@@ -215,7 +353,7 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(10);
-        $output = $ssh->exec('sudo mkdir -p ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'mkdir -p ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
@@ -227,7 +365,7 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(10);
-        $output = $ssh->exec('sudo mv ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'mv ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
@@ -239,7 +377,7 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
-        $output = $ssh->exec('sudo rm -rf ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'rm -rf ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
@@ -251,8 +389,8 @@ class SFTPService
     {
         $sftp = new SFTP($connection->host, $connection->port, self::TIMEOUT);
 
-        if (! $sftp->login($connection->username, $this->loadKey($connection))) {
-            throw new RuntimeException('Falha na autenticação SFTP. Verifique usuário e chave SSH.');
+        if (! $sftp->login($connection->username, $this->loadCredential($connection))) {
+            throw new RuntimeException('Falha na autenticação SFTP. Verifique usuário e senha/chave SSH.');
         }
 
         return $sftp;
@@ -262,11 +400,73 @@ class SFTPService
     {
         $ssh = new SSH2($connection->host, $connection->port, self::TIMEOUT);
 
-        if (! $ssh->login($connection->username, $this->loadKey($connection))) {
+        if (! $ssh->login($connection->username, $this->loadCredential($connection))) {
             throw new RuntimeException('Falha na autenticação SSH.');
         }
 
         return $ssh;
+    }
+
+    /**
+     * Runs a single command as root over a plain exec channel. Authenticates `sudo`
+     * with the connection's own stored password when it has one (password-auth
+     * connections) — feeding it via stdin through `sudo -S`, never as an argument —
+     * which also fixes the create/delete/rename/etc. operations below for any server
+     * whose sudoers actually requires a password instead of NOPASSWD. When there's no
+     * stored password (key-auth connections), this degrades to the previous
+     * NOPASSWD-only behaviour: `sudo -S` reads an empty stdin, which is a no-op
+     * whenever sudo doesn't need a password and fails clearly when it does.
+     */
+    private function sudoExec(SSH2 $ssh, Connection $connection, string $command): string
+    {
+        $password = $connection->auth_type === 'password' ? (string) $connection->password : '';
+        $stdin    = base64_encode($password . "\n");
+
+        // Many distros (RHEL/CentOS defaults, notably) set `Defaults requiretty` in
+        // sudoers, which makes sudo refuse to run at all without a controlling
+        // terminal — regardless of how the password is supplied. exec() doesn't
+        // allocate one by default, so request a PTY for this call.
+        $ssh->enablePTY();
+
+        $output = $ssh->exec(sprintf(
+            'echo %s | base64 -d | sudo -S -p %s -- bash -c %s',
+            escapeshellarg($stdin),
+            escapeshellarg(''),
+            escapeshellarg($command),
+        ));
+
+        $stderr = $ssh->getStdError();
+        if ($stderr !== '') {
+            Log::warning('SFTPService: sudo stderr', [
+                'host' => $connection->host,
+                'stderr' => $stderr,
+            ]);
+        }
+
+        return $output;
+    }
+
+    /**
+     * Strict base64_decode, but tolerant of whitespace — a PTY-backed exec channel
+     * (see sudoExec()) can translate the base64 output's line endings to CRLF, and
+     * strict decoding otherwise rejects the embedded \r as an invalid character.
+     */
+    private function decodeSudoBase64(string $raw): string|false
+    {
+        return base64_decode(preg_replace('/\s+/', '', $raw), true);
+    }
+
+    private function loadCredential(Connection $connection): mixed
+    {
+        if ($connection->auth_type === 'password') {
+            if (empty($connection->password)) {
+                throw new RuntimeException('Nenhuma senha configurada para esta conexão.');
+            }
+
+            return $connection->password;
+        }
+
+        return $this->loadKey($connection);
     }
 
     private function loadKey(Connection $connection): mixed
@@ -307,6 +507,38 @@ class SFTPService
         $perms .= ($mode & 00001) ? 'x' : '-';
 
         return $perms;
+    }
+
+    /** Same as formatPermissions(), but from find's `%m` (octal perm bits only, no type bits). */
+    private function permsFromOctal(string $octal, bool $isDir): string
+    {
+        $bits = str_split(str_pad(substr($octal, -3), 3, '0', STR_PAD_LEFT));
+        $map  = ['---', '--x', '-w-', '-wx', 'r--', 'r-x', 'rw-', 'rwx'];
+
+        $perms = $isDir ? 'd' : '-';
+        foreach ($bits as $digit) {
+            $perms .= $map[(int) $digit] ?? '---';
+        }
+
+        return $perms;
+    }
+
+    private function sortEntries(array &$entries): void
+    {
+        usort($entries, function (array $a, array $b): int {
+            if ($a['type'] !== $b['type']) {
+                return $a['type'] === 'dir' ? -1 : 1;
+            }
+
+            // Hidden files (dotfiles) go after regular
+            $aHidden = str_starts_with($a['name'], '.');
+            $bHidden = str_starts_with($b['name'], '.');
+            if ($aHidden !== $bHidden) {
+                return $aHidden ? 1 : -1;
+            }
+
+            return strcasecmp($a['name'], $b['name']);
+        });
     }
 
     private function humanSize(int $bytes): string

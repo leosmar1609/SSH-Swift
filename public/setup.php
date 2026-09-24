@@ -1,10 +1,10 @@
 <?php
 /**
  * SETUP TEMPORÁRIO — APAGAR APÓS USO
- * Acesso: http://seudominio.com/setup.php?token=LEOPANEL2026
+ * Acesso: http://seudominio.com/setup.php?token=TECHIAPANEL2026
  */
 
-if (($_GET['token'] ?? '') !== 'LEOPANEL2026') {
+if (($_GET['token'] ?? '') !== 'TECHIAPANEL2026') {
     http_response_code(403);
     die('<h1>403 Forbidden</h1>');
 }
@@ -19,7 +19,7 @@ $app->make(\Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 try {
     $user = \App\Models\User::firstOrCreate(
-        ['email' => 'admin@leopanel.local'],
+        ['email' => 'admin@techiapanel.local'],
         [
             'name'     => 'Admin',
             'password' => 'password123',
@@ -29,7 +29,7 @@ try {
 
     echo '<pre style="font-family:monospace;padding:20px">';
     echo '✅ Admin criado com sucesso!' . PHP_EOL;
-    echo '   E-mail : admin@leopanel.local' . PHP_EOL;
+    echo '   E-mail : admin@techiapanel.local' . PHP_EOL;
     echo '   Senha  : password123' . PHP_EOL . PHP_EOL;
     echo '⚠️  IMPORTANTE: Altere a senha após o primeiro login!' . PHP_EOL;
     echo '⚠️  APAGUE ESTE ARQUIVO: public/setup.php' . PHP_EOL;

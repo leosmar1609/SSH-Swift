@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $connection->name }} — LeoPanel</title>
+    <title>{{ $connection->name }} — TechIA Panel</title>
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
@@ -378,6 +378,9 @@
                 <button class="lp-tb-btn" id="btnDeleteFile" onclick="LP.promptDeleteCurrentFile()" disabled title="Excluir arquivo" style="color:var(--red)">
                     <i class="bi bi-trash3"></i>
                 </button>
+                <button class="lp-tb-btn" onclick="LP.navigateUp()" title="Subir um nível (Alt+↑)">
+                    <i class="bi bi-arrow-90deg-up"></i>
+                </button>
                 <button class="lp-tb-btn" onclick="LP.navigateHome()" title="Voltar à raiz do explorador">
                     <i class="bi bi-house-fill"></i>
                 </button>
@@ -393,7 +396,7 @@
         <div id="editor-wrap">
             <div id="welcome">
                 <i class="bi bi-terminal-fill lp-welcome-icon"></i>
-                <h2>LeoPanel Explorer</h2>
+                <h2>TechIA Panel Explorer</h2>
                 <p>Dê duplo clique em um arquivo para abrir no editor.</p>
                 <div class="lp-shortcut-grid">
                     <div><kbd>Duplo Clique</kbd></div><div style="color:var(--muted)">Abrir arquivo</div>
@@ -1009,6 +1012,15 @@ const LP = {
         treeState.root   = path;
         await this.loadTreeRoot(path);
         this.updateShortcutActive(path);
+    },
+
+    async navigateUp() {
+        const parts = this.currentPath.split('/').filter(Boolean);
+        if (parts.length === 0) return; // already at '/', nothing above it
+
+        parts.pop();
+        const parent = '/' + parts.join('/');
+        await this.navigateTo(parent);
     },
 
     async navigateHome() {
@@ -1676,6 +1688,7 @@ const LP = {
             if ((e.ctrlKey || e.metaKey) && e.key === 'w') { e.preventDefault(); if (tabState.activeIdx >= 0) this.closeTab(tabState.activeIdx); }
             if ((e.ctrlKey || e.metaKey) && e.key === 'p') { e.preventDefault(); new bootstrap.Modal(document.getElementById('searchModal')).show(); }
             if ((e.ctrlKey || e.metaKey) && e.key === '`') { e.preventDefault(); this.openTerminalTab(); }
+            if (e.altKey && e.key === 'ArrowUp') { e.preventDefault(); this.navigateUp(); }
         });
         document.addEventListener('keydown', e => { if (e.key === 'Escape') LP_CTX.hide(); });
     },
@@ -1882,7 +1895,7 @@ const LP_LOG = {
 require(['vs/editor/editor.main'], function () {
     monacoReady = true;
 
-    monaco.editor.defineTheme('leopanel-dark', {
+    monaco.editor.defineTheme('techiapanel-dark', {
         base   : 'vs-dark',
         inherit: true,
         rules  : [],
@@ -1897,7 +1910,7 @@ require(['vs/editor/editor.main'], function () {
     });
 
     editor = monaco.editor.create(document.getElementById('editor-container'), {
-        theme               : 'leopanel-dark',
+        theme               : 'techiapanel-dark',
         fontSize            : 14,
         fontFamily          : "'JetBrains Mono', 'Fira Code', Consolas, monospace",
         fontLigatures       : true,

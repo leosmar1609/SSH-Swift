@@ -18,12 +18,15 @@ class Connection extends Model
         'host',
         'port',
         'username',
+        'auth_type',
+        'password',
         'ssh_key_path',
         'startup_script',
     ];
 
     protected $casts = [
         'port'           => 'integer',
+        'password'       => 'encrypted',
         'startup_script' => 'encrypted',
     ];
 

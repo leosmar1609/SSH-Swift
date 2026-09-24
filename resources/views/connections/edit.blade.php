@@ -96,6 +96,23 @@
             </div>
 
             <div class="mt-3">
+                <label class="lp-form-label">Método de Autenticação</label>
+                <div class="lp-auth-toggle" role="group">
+                    <label class="lp-auth-toggle-option">
+                        <input type="radio" name="auth_type" value="key" {{ old('auth_type', $connection->auth_type) === 'key' ? 'checked' : '' }}>
+                        <i class="bi bi-key-fill"></i> Chave SSH
+                    </label>
+                    <label class="lp-auth-toggle-option">
+                        <input type="radio" name="auth_type" value="password" {{ old('auth_type', $connection->auth_type) === 'password' ? 'checked' : '' }}>
+                        <i class="bi bi-shield-lock-fill"></i> Usuário e Senha
+                    </label>
+                </div>
+                @error('auth_type')
+                    <div class="lp-invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="mt-3" id="authFieldKey">
                 <label class="lp-form-label" for="ssh_key">
                     Chave Privada SSH
                     @if($connection->ssh_key_path)
@@ -120,6 +137,28 @@
                     accept=".pem,.ppk,.key,application/octet-stream"
                 >
                 @error('ssh_key')
+                    <div class="lp-invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="mt-3" id="authFieldPassword" style="display:none">
+                <label class="lp-form-label" for="password">
+                    Senha SSH
+                    @if($connection->auth_type === 'password')
+                        <span class="lp-badge ms-2" style="font-size:10.5px">
+                            <i class="bi bi-shield-lock-fill"></i> Senha cadastrada
+                        </span>
+                    @endif
+                </label>
+                <input
+                    type="password"
+                    id="password"
+                    name="password"
+                    class="lp-input {{ $errors->has('password') ? 'is-invalid' : '' }}"
+                    placeholder="Deixe em branco para manter a senha atual"
+                    autocomplete="new-password"
+                >
+                @error('password')
                     <div class="lp-invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
@@ -180,6 +219,27 @@
 
 @push('scripts')
 <script>
+    const authFieldKey      = document.getElementById('authFieldKey');
+    const authFieldPassword = document.getElementById('authFieldPassword');
+    const sshKeyInput       = document.getElementById('ssh_key');
+    const passwordInput     = document.getElementById('password');
+
+    function syncAuthFields() {
+        const authType = document.querySelector('input[name="auth_type"]:checked')?.value ?? 'key';
+        const isPassword = authType === 'password';
+
+        authFieldKey.style.display      = isPassword ? 'none' : '';
+        authFieldPassword.style.display = isPassword ? '' : 'none';
+
+        sshKeyInput.disabled   = isPassword;
+        passwordInput.disabled = !isPassword;
+    }
+
+    document.querySelectorAll('input[name="auth_type"]').forEach(el => {
+        el.addEventListener('change', syncAuthFields);
+    });
+    syncAuthFields();
+
     document.getElementById('btnTest').addEventListener('click', async () => {
         const btn = document.getElementById('btnTest');
         const box = document.getElementById('testResultBox');
