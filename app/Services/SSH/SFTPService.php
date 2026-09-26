@@ -101,14 +101,14 @@ class SFTPService
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
 
-        $safePath = escapeshellarg($path);
+        $safePath = $this->posixQuote($path);
         $inner = "find {$safePath} -mindepth 1 -maxdepth 1 -printf '%f\t%y\t%s\t%T@\t%m\n' 2>/dev/null; echo \"__LP_EXIT__$?\"";
 
         $output = $this->sudoExec($ssh, $connection, $inner);
         $ssh->disconnect();
 
         if (! preg_match('/__LP_EXIT__(\d+)\s*$/', trim($output), $m) || $m[1] !== '0') {
-            throw new RuntimeException("Não foi possível listar '{$path}'. Verifique permissões.");
+            throw new RuntimeException("Não foi possível listar '{$path}'. " . $this->sudoErrorDetail($output));
         }
 
         $body = preg_replace('/__LP_EXIT__\d+\s*$/', '', $output);
@@ -154,12 +154,9 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
-        $safePath = escapeshellarg($path);
+        $safePath = $this->posixQuote($path);
 
-        // One exec() call for both stat and content — sudoExec() enables a PTY (see
-        // its docblock), and phpseclib3 doesn't support a second exec() on the same
-        // connection while a PTY channel is open without explicitly tearing it down
-        // first, so this avoids reusing $ssh for a second command. "__LP_SEP__"
+        // One exec() call for both stat and content, rather than two — "__LP_SEP__"
         // can't collide with the base64 blob after it (base64's alphabet has no
         // underscores), so splitting on it is unambiguous.
         $output = $this->sudoExec($ssh, $connection,
@@ -171,13 +168,13 @@ class SFTPService
         $stat = array_pad(array_map('trim', explode(' ', trim($statPart))), 2, null);
 
         if (! is_numeric($stat[0])) {
-            throw new RuntimeException("Arquivo não encontrado: {$path}");
+            throw new RuntimeException("Arquivo não encontrado ou sem permissão: {$path}. " . $this->sudoErrorDetail($statPart));
         }
 
         $content = $this->decodeSudoBase64($b64Part);
 
         if ($content === false) {
-            throw new RuntimeException("Sem permissão para ler: {$path}");
+            throw new RuntimeException("Sem permissão para ler: {$path}. " . $this->sudoErrorDetail($b64Part));
         }
 
         return [
@@ -201,8 +198,8 @@ class SFTPService
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
 
-        $safeTmp  = escapeshellarg($tempPath);
-        $safeDest = escapeshellarg($path);
+        $safeTmp  = $this->posixQuote($tempPath);
+        $safeDest = $this->posixQuote($path);
 
         $output = $this->sudoExec($ssh, $connection,
             "if cat {$safeTmp} > {$safeDest}; then echo '__LP_OK__'; else echo '__LP_ERR__'; fi; rm -f {$safeTmp}"
@@ -211,7 +208,7 @@ class SFTPService
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
-            throw new RuntimeException("Não foi possível salvar '{$path}'. Verifique permissões.");
+            throw new RuntimeException("Não foi possível salvar '{$path}'. " . $this->sudoErrorDetail($output));
         }
     }
 
@@ -220,8 +217,8 @@ class SFTPService
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(20);
 
-        $safeBase  = escapeshellarg($basePath);
-        $safeName  = escapeshellarg('*' . $query . '*');
+        $safeBase  = $this->posixQuote($basePath);
+        $safeName  = $this->posixQuote('*' . $query . '*');
         $cmd       = "find {$safeBase} -name {$safeName} -not -path '*/\\.git/*' -type f 2>/dev/null | head -100";
 
         $output = $ssh->exec($cmd);
@@ -279,18 +276,15 @@ class SFTPService
 
     private function tailFileElevated(Connection $connection, string $path, int $offset): array
     {
-        $safePath = escapeshellarg($path);
+        $safePath = $this->posixQuote($path);
 
-        // Two separate connections rather than two exec() calls on one — see the
-        // comment in readFileElevated() on why a single connection can't safely
-        // run a second sudoExec() once the first has opened a PTY channel.
-        $sshStat = $this->ssh($connection);
-        $sshStat->setTimeout(15);
-        $sizeOut = trim($this->sudoExec($sshStat, $connection, "stat -c '%s' {$safePath} 2>/dev/null"));
-        $sshStat->disconnect();
+        $ssh = $this->ssh($connection);
+        $ssh->setTimeout(15);
+        $sizeOut = trim($this->sudoExec($ssh, $connection, "stat -c '%s' {$safePath} 2>/dev/null"));
 
         if (! is_numeric($sizeOut)) {
-            throw new RuntimeException("Arquivo não encontrado: {$path}");
+            $ssh->disconnect();
+            throw new RuntimeException("Arquivo não encontrado ou sem permissão: {$path}. " . $this->sudoErrorDetail($sizeOut));
         }
 
         $size = (int) $sizeOut;
@@ -304,18 +298,17 @@ class SFTPService
         }
 
         if ($offset >= $size) {
+            $ssh->disconnect();
             return ['content' => '', 'size' => $size, 'offset' => $offset];
         }
 
-        $sshRead = $this->ssh($connection);
-        $sshRead->setTimeout(15);
-        $b64 = $this->sudoExec($sshRead, $connection, 'tail -c +' . ($offset + 1) . " {$safePath} 2>/dev/null | base64 -w0");
-        $sshRead->disconnect();
+        $b64 = $this->sudoExec($ssh, $connection, 'tail -c +' . ($offset + 1) . " {$safePath} 2>/dev/null | base64 -w0");
+        $ssh->disconnect();
 
         $content = $this->decodeSudoBase64($b64);
 
         if ($content === false) {
-            throw new RuntimeException("Sem permissão para ler: {$path}");
+            throw new RuntimeException("Sem permissão para ler: {$path}. " . $this->sudoErrorDetail($b64));
         }
 
         return [
@@ -329,11 +322,11 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
-        $output = $this->sudoExec($ssh, $connection, 'cp -r ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'cp -r ' . $this->posixQuote($from) . ' ' . $this->posixQuote($to) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
-            throw new RuntimeException("Não foi possível copiar '{$from}'.");
+            throw new RuntimeException("Não foi possível copiar '{$from}'. " . $this->sudoErrorDetail($output));
         }
     }
 
@@ -341,11 +334,11 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(10);
-        $output = $this->sudoExec($ssh, $connection, 'touch ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'touch ' . $this->posixQuote($path) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
-            throw new RuntimeException("Não foi possível criar '{$path}'.");
+            throw new RuntimeException("Não foi possível criar '{$path}'. " . $this->sudoErrorDetail($output));
         }
     }
 
@@ -353,11 +346,11 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(10);
-        $output = $this->sudoExec($ssh, $connection, 'mkdir -p ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'mkdir -p ' . $this->posixQuote($path) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
-            throw new RuntimeException("Não foi possível criar o diretório '{$path}'.");
+            throw new RuntimeException("Não foi possível criar o diretório '{$path}'. " . $this->sudoErrorDetail($output));
         }
     }
 
@@ -365,11 +358,11 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(10);
-        $output = $this->sudoExec($ssh, $connection, 'mv ' . escapeshellarg($from) . ' ' . escapeshellarg($to) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'mv ' . $this->posixQuote($from) . ' ' . $this->posixQuote($to) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
-            throw new RuntimeException("Não foi possível renomear.");
+            throw new RuntimeException("Não foi possível renomear. " . $this->sudoErrorDetail($output));
         }
     }
 
@@ -377,11 +370,11 @@ class SFTPService
     {
         $ssh = $this->ssh($connection);
         $ssh->setTimeout(15);
-        $output = $this->sudoExec($ssh, $connection, 'rm -rf ' . escapeshellarg($path) . ' && echo "__LP_OK__"');
+        $output = $this->sudoExec($ssh, $connection, 'rm -rf ' . $this->posixQuote($path) . ' && echo "__LP_OK__"');
         $ssh->disconnect();
 
         if (! str_contains($output, '__LP_OK__')) {
-            throw new RuntimeException("Não foi possível remover '{$path}'.");
+            throw new RuntimeException("Não foi possível remover '{$path}'. " . $this->sudoErrorDetail($output));
         }
     }
 
@@ -416,23 +409,23 @@ class SFTPService
      * stored password (key-auth connections), this degrades to the previous
      * NOPASSWD-only behaviour: `sudo -S` reads an empty stdin, which is a no-op
      * whenever sudo doesn't need a password and fails clearly when it does.
+     *
+     * Deliberately does NOT request a PTY: phpseclib3's exec() stops collecting
+     * output the moment a PTY is requested (it switches to a fire-and-forget mode
+     * meant for interactive read()/write() use, returning bool(true) instead of the
+     * command's output) — incompatible with the simple "run it, get the string
+     * back" usage every caller here relies on.
      */
     private function sudoExec(SSH2 $ssh, Connection $connection, string $command): string
     {
         $password = $connection->auth_type === 'password' ? (string) $connection->password : '';
         $stdin    = base64_encode($password . "\n");
 
-        // Many distros (RHEL/CentOS defaults, notably) set `Defaults requiretty` in
-        // sudoers, which makes sudo refuse to run at all without a controlling
-        // terminal — regardless of how the password is supplied. exec() doesn't
-        // allocate one by default, so request a PTY for this call.
-        $ssh->enablePTY();
-
         $output = $ssh->exec(sprintf(
             'echo %s | base64 -d | sudo -S -p %s -- bash -c %s',
-            escapeshellarg($stdin),
-            escapeshellarg(''),
-            escapeshellarg($command),
+            $this->posixQuote($stdin),
+            $this->posixQuote(''),
+            $this->posixQuote($command),
         ));
 
         $stderr = $ssh->getStdError();
@@ -444,6 +437,32 @@ class SFTPService
         }
 
         return $output;
+    }
+
+    /**
+     * PHP's escapeshellarg() quotes according to the LOCAL OS running this process
+     * (cmd.exe-style double quotes on Windows), but the command it builds always
+     * targets a REMOTE POSIX shell — so on a Windows dev machine it silently
+     * produces syntax bash never intended (nested "$?" pre-expanding a layer too
+     * early, "--" boundaries drifting, etc.). This is the standard OS-independent
+     * POSIX single-quote escape instead: close the quote, emit a literal quote,
+     * reopen it, for every embedded ' — safe for any byte sequence.
+     */
+    private function posixQuote(string $arg): string
+    {
+        return "'" . str_replace("'", "'\\''", $arg) . "'";
+    }
+
+    /**
+     * Surfaces sudo's own explanation (e.g. "claude is not in the sudoers file",
+     * a bad-password rejection, etc.) instead of a dead-end generic message —
+     * strips our own __LP_* markers first so only sudo/shell output is shown.
+     */
+    private function sudoErrorDetail(string $output): string
+    {
+        $clean = trim(preg_replace('/__LP_[A-Z]+__\d*/', '', $output));
+
+        return $clean !== '' ? "Detalhe: {$clean}" : 'Verifique permissões.';
     }
 
     /**
