@@ -135,24 +135,6 @@
         .lp-shortcut-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .8rem; font-size: 12px; margin-top: .5rem; }
         .lp-shortcut-grid kbd { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text); }
 
-        /* ── Log viewer ── */
-        #log-viewer { flex: 1; display: none; flex-direction: column; overflow: hidden; background: #0a0e14; }
-        #log-viewer.active { display: flex; }
-        #log-toolbar { height: 32px; background: var(--surface); border-bottom: 1px solid var(--border2); display: flex; align-items: center; padding: 0 10px; gap: 8px; flex-shrink: 0; font-size: 12px; }
-        .log-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex-shrink: 0; animation: log-pulse 1.4s ease-in-out infinite; }
-        @keyframes log-pulse { 0%,100%{opacity:1;box-shadow:0 0 4px var(--green)} 50%{opacity:.5;box-shadow:none} }
-        #log-file-name { color: var(--muted); font-family: 'JetBrains Mono',monospace; font-size: 11px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        #log-updated { font-size: 11px; color: var(--subtle); white-space: nowrap; }
-        .log-tb-btn { background: transparent; border: none; color: var(--subtle); cursor: pointer; padding: 3px 8px; border-radius: 4px; font-size: 11.5px; display: flex; align-items: center; gap: 4px; }
-        .log-tb-btn:hover { background: rgba(255,255,255,.07); color: var(--text); }
-        .log-tb-btn.active { color: var(--green); }
-        #log-content-wrap { flex: 1; overflow-y: auto; overflow-x: auto; padding: 8px 12px; }
-        #log-content { font-family: 'JetBrains Mono', Consolas, monospace; font-size: 12.5px; line-height: 1.55; color: #c9d1d9; white-space: pre; margin: 0; }
-        #log-content .log-err  { color: #f85149; }
-        #log-content .log-warn { color: #e3b341; }
-        #log-content .log-info { color: #58a6ff; }
-        #log-content .log-ok   { color: #3fb950; }
-
         /* ── Status bar ── */
         #status-bar { height: var(--statusbar-h); background: var(--blue-dim); color: rgba(255,255,255,.85); display: flex; align-items: center; padding: 0 10px; font-size: 11.5px; flex-shrink: 0; gap: 12px; }
         .lp-sb-right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
@@ -407,27 +389,6 @@
                 </div>
             </div>
             <div id="editor-container" style="display:none;"></div>
-
-            <div id="log-viewer">
-                <div id="log-toolbar">
-                    <span class="log-live-dot"></span>
-                    <span style="color:var(--green);font-size:11px;font-weight:600;letter-spacing:.3px">LIVE</span>
-                    <span id="log-file-name"></span>
-                    <span id="log-updated"></span>
-                    <button class="log-tb-btn" id="btnAutoScroll" onclick="LP_LOG.toggleAutoScroll()" title="Auto-scroll">
-                        <i class="bi bi-arrow-down-circle"></i> Auto-scroll
-                    </button>
-                    <button class="log-tb-btn" onclick="LP_LOG.scrollBottom()" title="Ir para o fim">
-                        <i class="bi bi-skip-end-fill"></i>
-                    </button>
-                    <button class="log-tb-btn" onclick="LP_LOG.clear()" title="Limpar tela">
-                        <i class="bi bi-eraser"></i> Limpar
-                    </button>
-                </div>
-                <div id="log-content-wrap">
-                    <pre id="log-content"></pre>
-                </div>
-            </div>
         </div>
 
     </div>
@@ -1088,9 +1049,6 @@ const LP = {
 
     // ── File opening ──────────────────────────────────────────────────────────
     async openFile(path) {
-        const ext = path.split('.').pop().toLowerCase();
-        if (ext === 'log') { return this._openLogTab(path); }
-
         const existingIdx = tabState.tabs.findIndex(t => t.path === path);
         if (existingIdx >= 0) { this.switchTab(existingIdx); return; }
 
@@ -1102,28 +1060,6 @@ const LP = {
             if (monacoReady) this._doOpenFile(data);
             else pendingOpen = data;
         } catch { this.toast('err', 'Erro ao abrir arquivo.'); }
-    },
-
-    _openLogTab(path) {
-        const existingIdx = tabState.tabs.findIndex(t => t.path === path);
-        if (existingIdx >= 0) { this.switchTab(existingIdx); return; }
-
-        const tab = {
-            path,
-            name      : path.split('/').pop(),
-            language  : 'log',
-            type      : 'log',
-            model     : null,
-            viewState : null,
-            modified  : false,
-            logContent: '',
-            logOffset : 0,
-            logSize   : 0,
-            autoScroll: true,
-        };
-
-        tabState.tabs.push(tab);
-        this.switchTab(tabState.tabs.length - 1);
     },
 
     _doOpenFile(data) {
@@ -1158,10 +1094,7 @@ const LP = {
     switchTab(idx) {
         // Save editor state of previous tab
         const prev = tabState.activeIdx >= 0 ? tabState.tabs[tabState.activeIdx] : null;
-        if (prev && prev.type !== 'log') prev.viewState = editor?.saveViewState();
-
-        // Stop any running log poll
-        LP_LOG.stopPolling();
+        if (prev) prev.viewState = editor?.saveViewState();
 
         tabState.activeIdx = idx;
         const tab = tabState.tabs[idx];
@@ -1170,29 +1103,16 @@ const LP = {
         document.getElementById('welcome').style.display = 'none';
         document.getElementById('sb-lang').textContent   = tab.language;
 
-        if (tab.type === 'log') {
-            document.getElementById('editor-container').style.display = 'none';
-            document.getElementById('log-viewer').classList.add('active');
-            document.getElementById('log-file-name').textContent = tab.name;
-            document.getElementById('log-content').textContent   = tab.logContent;
-            document.getElementById('btnSave').disabled       = true;
-            document.getElementById('btnSave').classList.remove('save-active');
-            document.getElementById('btnDeleteFile').disabled = true;
-            if (tab.autoScroll) LP_LOG.scrollBottom();
-            LP_LOG.startPolling(tab);
-        } else {
-            document.getElementById('log-viewer').classList.remove('active');
-            document.getElementById('editor-container').style.display = 'block';
-            if (editor) {
-                editor.setModel(tab.model);
-                if (tab.viewState) editor.restoreViewState(tab.viewState);
-                editor.focus();
-            }
-            const btn = document.getElementById('btnSave');
-            btn.disabled = !tab.modified;
-            btn.classList.toggle('save-active', tab.modified);
-            document.getElementById('btnDeleteFile').disabled = false;
+        document.getElementById('editor-container').style.display = 'block';
+        if (editor) {
+            editor.setModel(tab.model);
+            if (tab.viewState) editor.restoreViewState(tab.viewState);
+            editor.focus();
         }
+        const btn = document.getElementById('btnSave');
+        btn.disabled = !tab.modified;
+        btn.classList.toggle('save-active', tab.modified);
+        document.getElementById('btnDeleteFile').disabled = false;
 
         this.renderTabs();
     },
@@ -1202,16 +1122,14 @@ const LP = {
         if (!tab) return;
         if (tab.modified && !confirm(`"${tab.name}" tem alterações não salvas. Fechar?`)) return;
 
-        if (tab.type !== 'log') tab.model?.dispose();
+        tab.model?.dispose();
         tabState.tabs.splice(idx, 1);
 
         if (tabState.tabs.length === 0) {
             tabState.activeIdx = -1;
-            LP_LOG.stopPolling();
             editor?.setModel(null);
             document.getElementById('welcome').style.display = 'flex';
             document.getElementById('editor-container').style.display = 'none';
-            document.getElementById('log-viewer').classList.remove('active');
             document.getElementById('btnSave').disabled       = true;
             document.getElementById('btnDeleteFile').disabled = true;
             document.getElementById('sb-lang').textContent   = '';
@@ -1225,13 +1143,12 @@ const LP = {
         const list = document.getElementById('tabs-list');
         list.innerHTML = '';
         tabState.tabs.forEach((tab, idx) => {
-            const isLog = tab.type === 'log';
-            const icon  = isLog ? 'bi-broadcast' : getFileIcon(tab.name, 'file').icon;
-            const color = isLog ? 'var(--green)'  : getFileIcon(tab.name, 'file').color;
+            const icon  = getFileIcon(tab.name, 'file').icon;
+            const color = getFileIcon(tab.name, 'file').color;
             const div   = document.createElement('div');
             div.className = 'lp-tab' + (idx === tabState.activeIdx ? ' active' : '') + (tab.modified ? ' modified' : '');
             div.title = tab.path;
-            div.innerHTML = `<span class="lp-tab-icon"><i class="bi ${icon}" style="color:${color}${isLog ? ';animation:lp-spin 2s linear infinite' : ''}"></i></span>
+            div.innerHTML = `<span class="lp-tab-icon"><i class="bi ${icon}" style="color:${color}"></i></span>
                              <span class="lp-tab-name">${this.esc(tab.name)}</span>
                              <button class="lp-tab-close" title="Fechar"><i class="bi bi-x"></i></button>`;
             div.addEventListener('click', e => { if (!e.target.closest('.lp-tab-close')) this.switchTab(idx); });
@@ -1371,7 +1288,7 @@ const LP = {
     promptDeleteCurrentFile() {
         if (tabState.activeIdx < 0) return;
         const tab = tabState.tabs[tabState.activeIdx];
-        if (!tab || tab.type === 'log') return;
+        if (!tab) return;
         this.promptDelete(tab.path, 'file');
     },
 
@@ -1808,89 +1725,6 @@ const LP_CTX = {
     promptDuplicate()  { this.hide(); LP.promptDuplicate(this.path, this.type); },
 };
 
-// ─── Log tail viewer ─────────────────────────────────────────────────────────
-const LP_LOG = {
-    pollId    : null,
-    MAX_LINES : 6000,
-
-    startPolling(tab) {
-        if (this.pollId) clearInterval(this.pollId);
-        this._poll(tab);
-        this.pollId = setInterval(() => this._poll(tab), 2000);
-    },
-
-    stopPolling() {
-        if (this.pollId) { clearInterval(this.pollId); this.pollId = null; }
-    },
-
-    async _poll(tab) {
-        try {
-            const { data } = await axios.get(`${LP_CFG.apiBase}/log/tail`, {
-                params: { path: tab.path, offset: tab.logOffset },
-            });
-            if (!data.success) return;
-
-            // File rotated / truncated
-            if (data.size < tab.logOffset) {
-                tab.logContent = '';
-                tab.logOffset  = 0;
-            }
-
-            if (data.content) {
-                tab.logContent += data.content;
-
-                // Keep last MAX_LINES lines to avoid memory bloat
-                const lines = tab.logContent.split('\n');
-                if (lines.length > this.MAX_LINES) {
-                    tab.logContent = lines.slice(-this.MAX_LINES).join('\n');
-                }
-
-                tab.logOffset = data.offset;
-                tab.logSize   = data.size;
-
-                // Only update DOM for the active tab
-                if (tabState.tabs[tabState.activeIdx] === tab) {
-                    this._render(tab, data.content.length > 0);
-                }
-            }
-        } catch { /* network hiccup — silently retry next tick */ }
-    },
-
-    _render(tab, hasNew) {
-        const el = document.getElementById('log-content');
-        el.textContent = tab.logContent;
-
-        if (hasNew) {
-            const now = new Date();
-            const hms = now.toLocaleTimeString('pt-BR');
-            document.getElementById('log-updated').textContent = `Última atualização: ${hms}`;
-        }
-
-        if (tab.autoScroll) this.scrollBottom();
-    },
-
-    scrollBottom() {
-        const wrap = document.getElementById('log-content-wrap');
-        wrap.scrollTop = wrap.scrollHeight;
-    },
-
-    toggleAutoScroll() {
-        const tab = tabState.tabs[tabState.activeIdx];
-        if (!tab || tab.type !== 'log') return;
-        tab.autoScroll = !tab.autoScroll;
-        const btn = document.getElementById('btnAutoScroll');
-        btn.classList.toggle('active', tab.autoScroll);
-        if (tab.autoScroll) this.scrollBottom();
-    },
-
-    clear() {
-        const tab = tabState.tabs[tabState.activeIdx];
-        if (!tab || tab.type !== 'log') return;
-        tab.logContent = '';
-        document.getElementById('log-content').textContent = '';
-    },
-};
-
 // ─── Monaco editor ────────────────────────────────────────────────────────────
 require(['vs/editor/editor.main'], function () {
     monacoReady = true;
@@ -1934,21 +1768,6 @@ require(['vs/editor/editor.main'], function () {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => LP.saveCurrentFile());
 
     if (pendingOpen) { LP._doOpenFile(pendingOpen); pendingOpen = null; }
-});
-
-// Pause auto-scroll when user manually scrolls up in the log viewer
-document.getElementById('log-content-wrap').addEventListener('scroll', function () {
-    const tab = tabState.tabs[tabState.activeIdx];
-    if (!tab || tab.type !== 'log') return;
-    const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 40;
-    if (!atBottom && tab.autoScroll) {
-        tab.autoScroll = false;
-        document.getElementById('btnAutoScroll').classList.remove('active');
-    }
-    if (atBottom && !tab.autoScroll) {
-        tab.autoScroll = true;
-        document.getElementById('btnAutoScroll').classList.add('active');
-    }
 });
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

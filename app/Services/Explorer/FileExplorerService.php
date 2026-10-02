@@ -95,12 +95,6 @@ class FileExplorerService
         $this->sftp->copyFile($connection, $from, $to);
     }
 
-    public function tailFile(Connection $connection, string $path, int $offset): array
-    {
-        $this->guardPath($connection, $path);
-        return $this->sftp->tailFile($connection, $path, $offset);
-    }
-
     public function getRoot(Connection $connection): string
     {
         return Session::get("explorer.{$connection->id}.root", '/');

@@ -207,24 +207,6 @@ class ExplorerController extends Controller
         }
     }
 
-    public function tailLog(Connection $connection, Request $request): JsonResponse
-    {
-        $request->validate([
-            'path'   => ['required', 'string'],
-            'offset' => ['integer', 'min:0'],
-        ]);
-        try {
-            $result = $this->explorer->tailFile(
-                $connection,
-                $request->input('path'),
-                (int) $request->input('offset', 0),
-            );
-            return response()->json(['success' => true, ...$result]);
-        } catch (Throwable $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()]);
-        }
-    }
-
     public function addShortcut(Connection $connection, Request $request): JsonResponse
     {
         $request->validate([

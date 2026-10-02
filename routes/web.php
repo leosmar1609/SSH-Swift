@@ -52,7 +52,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/connect',      [ExplorerController::class, 'connect'])       ->name('connect');
         Route::get('/directory',     [ExplorerController::class, 'directory'])     ->name('directory');
         Route::get('/file',          [ExplorerController::class, 'readFile'])      ->name('file.read');
-        Route::get('/log/tail',      [ExplorerController::class, 'tailLog'])       ->name('log.tail');
         Route::post('/file/save',    [ExplorerController::class, 'saveFile'])      ->name('file.save');
         Route::get('/search',        [ExplorerController::class, 'search'])        ->name('search');
         Route::post('/favorites',    [ExplorerController::class, 'addFavorite'])   ->name('favorites.add');
