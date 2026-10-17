@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php --version)",
+      "Bash(composer --version)",
+      "Bash(npm --version)",
+      "Read(//c/Users/LeonardodeSouzaMarco/Desktop/**)",
+      "Bash(composer create-project *)",
+      "Bash(cp -r \"c:/Users/LeonardodeSouzaMarco/Desktop/LeoPanel_temp/.\" \"c:/Users/LeonardodeSouzaMarco/Desktop/MeuPortal/\" && echo \"MOVED_OK\")",
+      "Bash(rm -rf \"c:/Users/LeonardodeSouzaMarco/Desktop/LeoPanel_temp\" && echo \"CLEANUP_OK\")",
+      "Bash(composer require *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\LeonardodeSouzaMarco\\Desktop\\LeoPanel_temp"
+    ]
+  }
+}
