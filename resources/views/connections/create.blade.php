@@ -133,6 +133,21 @@
                 @error('ssh_key')
                     <div class="lp-invalid-feedback">{{ $message }}</div>
                 @enderror
+
+                <label class="lp-form-label mt-3" for="key_passphrase">
+                    Senha da chave <span style="color:var(--lp-text-subtle);font-weight:400">(opcional)</span>
+                </label>
+                <input
+                    type="password"
+                    id="key_passphrase"
+                    name="key_passphrase"
+                    class="lp-input {{ $errors->has('key_passphrase') ? 'is-invalid' : '' }}"
+                    placeholder="Só se a chave foi criada com senha (passphrase)"
+                    autocomplete="new-password"
+                >
+                @error('key_passphrase')
+                    <div class="lp-invalid-feedback">{{ $message }}</div>
+                @enderror
             </div>
 
             <div class="mt-3" id="authFieldPassword" style="display:none">
@@ -212,6 +227,7 @@
     const authFieldPassword = document.getElementById('authFieldPassword');
     const sshKeyInput       = document.getElementById('ssh_key');
     const passwordInput     = document.getElementById('password');
+    const passphraseInput   = document.getElementById('key_passphrase');
 
     function syncAuthFields() {
         const authType = document.querySelector('input[name="auth_type"]:checked')?.value ?? 'key';
@@ -222,8 +238,9 @@
 
         // Disable the hidden field's input so it's excluded from FormData/form submit —
         // otherwise both ssh_key and password would post together.
-        sshKeyInput.disabled   = isPassword;
-        passwordInput.disabled = !isPassword;
+        sshKeyInput.disabled     = isPassword;
+        passphraseInput.disabled = isPassword;
+        passwordInput.disabled   = !isPassword;
     }
 
     document.querySelectorAll('input[name="auth_type"]').forEach(el => {

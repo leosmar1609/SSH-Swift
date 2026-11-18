@@ -21,12 +21,14 @@ class Connection extends Model
         'auth_type',
         'password',
         'ssh_key_path',
+        'key_passphrase',
         'startup_script',
     ];
 
     protected $casts = [
         'port'           => 'integer',
         'password'       => 'encrypted',
+        'key_passphrase' => 'encrypted',
         'startup_script' => 'encrypted',
     ];
 

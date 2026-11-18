@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS `connections` (
   `auth_type` varchar(255) NOT NULL DEFAULT 'key',
   `password` text DEFAULT NULL,
   `ssh_key_path` varchar(255) DEFAULT NULL,
+  `key_passphrase` text DEFAULT NULL,
   `startup_script` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -160,6 +161,8 @@ INSERT IGNORE INTO `migrations` (`migration`, `batch`) VALUES
 ('2026_06_26_190350_create_favorites_table', 1),
 ('2026_06_26_200000_create_connection_shortcuts_table', 1),
 ('2026_06_30_000001_add_is_admin_to_users_table', 1),
-('2026_06_30_000002_add_user_id_to_connections_table', 1);
+('2026_06_30_000002_add_user_id_to_connections_table', 1),
+('2026_09_03_000000_add_auth_type_to_connections_table', 1),
+('2026_11_18_000000_add_key_passphrase_to_connections_table', 1);
 
 SET FOREIGN_KEY_CHECKS = 1;

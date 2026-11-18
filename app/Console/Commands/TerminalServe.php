@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -79,6 +80,15 @@ class TerminalServe extends Command
 
         if (! is_array($payload)) {
             $connection->terminalAuthError = 'Sessão inválida ou expirada. Feche esta aba e abra o terminal novamente.';
+
+            return;
+        }
+
+        // The web route already requires admin to issue a token; re-check here
+        // so the WS gateway doesn't rely solely on that (and catches an admin
+        // demoted in the token's few seconds of validity).
+        if (! User::whereKey((int) $payload['user_id'])->where('is_admin', true)->exists()) {
+            $connection->terminalAuthError = 'Acesso ao terminal restrito a administradores.';
 
             return;
         }

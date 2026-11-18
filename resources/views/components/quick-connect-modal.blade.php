@@ -49,6 +49,10 @@
                     <div class="mt-3" id="qcAuthFieldKey">
                         <label class="lp-form-label" for="qcSshKey">Chave Privada SSH</label>
                         <input type="file" id="qcSshKey" name="ssh_key" class="lp-file-input" accept=".pem,.ppk,.key,application/octet-stream">
+                        <label class="lp-form-label mt-3" for="qcKeyPassphrase">
+                            Senha da chave <span style="color:var(--lp-text-subtle);font-weight:400">(opcional)</span>
+                        </label>
+                        <input type="password" id="qcKeyPassphrase" name="key_passphrase" class="lp-input" placeholder="Só se a chave foi criada com senha (passphrase)" autocomplete="new-password">
                     </div>
 
                     <div class="mt-3" id="qcAuthFieldPassword" style="display:none">
@@ -81,6 +85,7 @@
     const fieldPassword = document.getElementById('qcAuthFieldPassword');
     const sshKeyInput    = document.getElementById('qcSshKey');
     const passwordInput  = document.getElementById('qcPassword');
+    const passphraseInput = document.getElementById('qcKeyPassphrase');
 
     function syncAuthFields() {
         const authType = form.querySelector('input[name="auth_type"]:checked')?.value ?? 'key';
@@ -89,8 +94,9 @@
         fieldKey.style.display      = isPassword ? 'none' : '';
         fieldPassword.style.display = isPassword ? '' : 'none';
 
-        sshKeyInput.disabled   = isPassword;
-        passwordInput.disabled = !isPassword;
+        sshKeyInput.disabled     = isPassword;
+        passphraseInput.disabled = isPassword;
+        passwordInput.disabled   = !isPassword;
     }
 
     form.querySelectorAll('input[name="auth_type"]').forEach(el => {

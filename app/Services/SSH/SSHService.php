@@ -4,8 +4,6 @@ namespace App\Services\SSH;
 
 use App\Models\Connection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Exception\ConnectionClosedException;
 use phpseclib3\Exception\NoSupportedAlgorithmsException;
 use phpseclib3\Exception\UnableToConnectException;
@@ -123,21 +121,7 @@ class SSHService
 
     private function loadPrivateKey(Connection $connection): mixed
     {
-        if (empty($connection->ssh_key_path)) {
-            throw new RuntimeException('Nenhuma chave SSH configurada para esta conexão.');
-        }
-
-        if (! Storage::exists($connection->ssh_key_path)) {
-            throw new RuntimeException('Arquivo de chave SSH não encontrado. Recadastre a chave.');
-        }
-
-        $keyContent = Storage::get($connection->ssh_key_path);
-
-        try {
-            return PublicKeyLoader::load($keyContent);
-        } catch (Throwable $e) {
-            throw new RuntimeException('Chave SSH inválida ou corrompida. Verifique o arquivo enviado.');
-        }
+        return SshKeyLoader::fromConnection($connection);
     }
 
     private function resolveAuthError(SSH2 $ssh): string

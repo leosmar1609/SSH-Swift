@@ -35,7 +35,7 @@ class ConnectionController extends Controller
     public function store(StoreConnectionRequest $request): RedirectResponse
     {
         $this->service->store(
-            $request->only(['name', 'host', 'port', 'username', 'auth_type', 'password', 'startup_script']),
+            $request->only(['name', 'host', 'port', 'username', 'auth_type', 'password', 'key_passphrase', 'startup_script']),
             $request->file('ssh_key'),
         );
 
@@ -51,7 +51,7 @@ class ConnectionController extends Controller
 
     public function update(UpdateConnectionRequest $request, Connection $connection): RedirectResponse
     {
-        $data = $request->only(['name', 'host', 'port', 'username', 'auth_type', 'password', 'startup_script']);
+        $data = $request->only(['name', 'host', 'port', 'username', 'auth_type', 'password', 'key_passphrase', 'startup_script']);
 
         // Blank password on update means "keep the current one" — same semantics as
         // leaving the ssh_key file input empty, handled separately below via the file arg.
@@ -115,6 +115,8 @@ class ConnectionController extends Controller
 
         if ($data['auth_type'] === 'password') {
             $data['password'] = $request->input('password');
+        } else {
+            $data['key_passphrase'] = $request->input('key_passphrase');
         }
 
         $connection = $this->service->store($data, $request->file('ssh_key'));
@@ -149,7 +151,8 @@ class ConnectionController extends Controller
         } else {
             $keyFile = $request->file('ssh_key');
             $keyPath = $keyFile->storeAs('ssh_keys/temp', uniqid() . '_' . $keyFile->getClientOriginalName());
-            $data['ssh_key_path'] = $keyPath;
+            $data['ssh_key_path']   = $keyPath;
+            $data['key_passphrase'] = $request->input('key_passphrase');
         }
 
         $connection = new Connection($data);

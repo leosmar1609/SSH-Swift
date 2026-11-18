@@ -82,7 +82,8 @@
                 Explorer
             </a>
 
-            {{-- Terminal (abre em nova aba, PTY interativo) --}}
+            {{-- Terminal (abre em nova aba, PTY interativo) — só ADM --}}
+            @if(auth()->user()->is_admin)
             <a
                 href="{{ route('connections.terminal', $connection) }}"
                 target="_blank"
@@ -92,6 +93,7 @@
             >
                 <i class="bi bi-terminal-fill"></i>
             </a>
+            @endif
 
             {{-- Testar --}}
             <button

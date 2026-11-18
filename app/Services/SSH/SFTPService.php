@@ -4,8 +4,6 @@ namespace App\Services\SSH;
 
 use App\Models\Connection;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Net\SFTP;
 use phpseclib3\Net\SSH2;
 use RuntimeException;
@@ -14,6 +12,11 @@ use Throwable;
 class SFTPService
 {
     private const TIMEOUT = 15;
+
+    // Files bigger than this are opened read-only, showing only their last
+    // MAX_READ_BYTES (the tail is what matters for logs, which is what usually
+    // grows this big) instead of loading the whole thing into memory/the editor.
+    private const MAX_READ_BYTES = 5 * 1024 * 1024;
 
     // phpseclib3 SFTP type constants
     private const TYPE_REGULAR   = 1;
@@ -60,8 +63,14 @@ class SFTPService
     {
         $sftp = $this->sftp($connection);
         $stat = $sftp->stat($path);
+        $size = (int) ($stat['size'] ?? 0);
 
-        $content = $stat ? $sftp->get($path) : false;
+        $content = false;
+        if ($stat) {
+            $content = $size > self::MAX_READ_BYTES
+                ? $sftp->get($path, false, $size - self::MAX_READ_BYTES, self::MAX_READ_BYTES)
+                : $sftp->get($path);
+        }
 
         if (! $stat || $content === false) {
             return $this->finishReadFile($this->readFileElevated($connection, $path));
@@ -69,25 +78,97 @@ class SFTPService
 
         return $this->finishReadFile([
             'content'  => $content,
-            'size'     => $stat['size'] ?? 0,
+            'size'     => $size,
             'modified' => $stat['mtime'] ?? 0,
         ]);
     }
 
+    /**
+     * Turns raw file bytes into something the editor can show. Logs are the
+     * usual trouble: they often carry stray NUL bytes (left behind by
+     * copytruncate-style rotation or a crash mid-write), mixed/invalid
+     * encodings, and can be huge — none of which make them binary.
+     *
+     * Adds 'readonly' + 'notice' when what's shown isn't the exact file
+     * content (only its tail, or with bytes removed/replaced), so the
+     * frontend won't let a save overwrite the real file with it.
+     */
     private function finishReadFile(array $file): array
     {
-        $content = $file['content'];
+        $content  = $file['content'];
+        $notices  = [];
+        $readonly = false;
 
-        // Reject binary files
-        if (str_contains(substr($content, 0, 8000), "\x00")) {
-            throw new RuntimeException("Arquivo binário não pode ser aberto no editor.");
+        if ($file['size'] > self::MAX_READ_BYTES) {
+            // Started reading mid-file: drop the partial first line.
+            $firstNewline = strpos($content, "\n");
+            if ($firstNewline !== false) {
+                $content = substr($content, $firstNewline + 1);
+            }
+
+            $readonly  = true;
+            $notices[] = sprintf(
+                'Arquivo grande (%s): mostrando só os últimos %s.',
+                $this->humanSize($file['size']),
+                $this->humanSize(self::MAX_READ_BYTES),
+            );
+        }
+
+        if ($this->looksBinary($content)) {
+            throw new RuntimeException('Arquivo binário não pode ser aberto no editor.');
+        }
+
+        if (str_contains($content, "\x00")) {
+            $content   = str_replace("\x00", '', $content);
+            $readonly  = true;
+            $notices[] = 'O arquivo tinha bytes nulos (\\0), que foram removidos na exibição.';
         }
 
         if (! mb_check_encoding($content, 'UTF-8')) {
-            $file['content'] = mb_convert_encoding($content, 'UTF-8', 'auto');
+            // Mostly-UTF-8 with a few bad bytes -> just replace the bad bytes;
+            // no UTF-8 multibyte sequences at all -> it's a legacy single-byte
+            // encoding (typically Windows-1252/Latin-1 on these servers).
+            $content = preg_match('/[\xC2-\xF4][\x80-\xBF]/', $content)
+                ? mb_scrub($content, 'UTF-8')
+                : mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
+
+            $readonly  = true;
+            $notices[] = 'O arquivo não estava em UTF-8 e foi convertido para exibição.';
         }
 
+        $file['content']  = $content;
+        $file['readonly'] = $readonly;
+        $file['notice']   = $notices ? implode(' ', $notices) . ' Aberto somente leitura.' : null;
+
         return $file;
+    }
+
+    /**
+     * Real binaries (images, archives, executables) are dense with control and
+     * high bytes; text — logs included — has at most a sprinkling of them (ESC
+     * from ANSI colors, accented chars in a legacy encoding). Judge by
+     * proportion, not mere presence of a NUL.
+     *
+     * Runs of NULs are ignored first: copytruncate-style log rotation leaves the
+     * start of a log as one big block of NULs (often megabytes), which would
+     * otherwise make every rotated log look binary.
+     */
+    private function looksBinary(string $content): bool
+    {
+        $sample = substr(preg_replace('/\x00{16,}/', '', $content), 0, 8000);
+        if ($sample === '') {
+            return false;
+        }
+
+        // Control chars other than \t \n \r \f \v and ESC (ANSI color codes).
+        $suspicious = preg_match_all('/[\x00-\x08\x0E-\x1A\x1C-\x1F]/', $sample);
+
+        // High bytes only count when they don't form valid UTF-8.
+        if (! mb_check_encoding($sample, 'UTF-8')) {
+            $suspicious += preg_match_all('/[\x80-\xFF]/', $sample);
+        }
+
+        return $suspicious / strlen($sample) > 0.30;
     }
 
     /**
@@ -159,8 +240,12 @@ class SFTPService
         // One exec() call for both stat and content, rather than two — "__LP_SEP__"
         // can't collide with the base64 blob after it (base64's alphabet has no
         // underscores), so splitting on it is unambiguous.
+        // Only the last MAX_READ_BYTES (see finishReadFile()). "!" isn't valid
+        // base64, so an unreadable file still fails decodeSudoBase64() below.
+        $max = self::MAX_READ_BYTES;
         $output = $this->sudoExec($ssh, $connection,
-            "stat -c '%s %Y' {$safePath} 2>/dev/null; echo '__LP_SEP__'; base64 {$safePath} 2>/dev/null"
+            "stat -c '%s %Y' {$safePath} 2>/dev/null; echo '__LP_SEP__'; "
+            . "if [ -r {$safePath} ]; then tail -c {$max} {$safePath} | base64; else echo '!'; fi"
         );
         $ssh->disconnect();
 
@@ -411,15 +496,7 @@ class SFTPService
 
     private function loadKey(Connection $connection): mixed
     {
-        if (empty($connection->ssh_key_path) || ! Storage::exists($connection->ssh_key_path)) {
-            throw new RuntimeException('Chave SSH não encontrada. Recadastre a conexão.');
-        }
-
-        try {
-            return PublicKeyLoader::load(Storage::get($connection->ssh_key_path));
-        } catch (Throwable) {
-            throw new RuntimeException('Chave SSH inválida ou corrompida.');
-        }
+        return SshKeyLoader::fromConnection($connection);
     }
 
     private function isDirectory(array $attrs): bool

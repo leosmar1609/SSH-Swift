@@ -74,6 +74,8 @@ class ExplorerController extends Controller
                 'language' => $this->detectLanguage($path),
                 'size'     => $file['size'],
                 'modified' => $file['modified'],
+                'readonly' => $file['readonly'] ?? false,
+                'notice'   => $file['notice'] ?? null,
             ]);
         } catch (Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);

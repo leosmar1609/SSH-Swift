@@ -207,9 +207,17 @@
         @keyframes lp-spin { to { transform: rotate(360deg); } }
         .lp-spin { animation: lp-spin .7s linear infinite; display: inline-block; }
         .bi-star-fill.fav { color: var(--yellow); }
+
+        /* Non-admin = read-only Explorer. Elements stay in the DOM (the JS
+           references them by id) but are hidden; !important beats the inline
+           style.display the context menu sets. The routes are blocked
+           server-side too — this is only so the buttons aren't offered. */
+        body.lp-readonly .lp-admin-only { display: none !important; }
+        .lp-ro-badge { display: none; align-items: center; gap: 5px; font-size: 11.5px; color: var(--yellow); padding: 2px 8px; border: 1px solid rgba(210,153,34,.35); border-radius: 4px; white-space: nowrap; }
+        body.lp-readonly .lp-ro-badge { display: inline-flex; }
     </style>
 </head>
-<body>
+<body class="{{ auth()->user()->is_admin ? '' : 'lp-readonly' }}">
 <div id="lp-ide">
 
 {{-- ── Topbar ── --}}
@@ -247,7 +255,7 @@
             <div class="lp-server-meta" id="connMeta">{{ $connection->host }}</div>
         </div>
 
-        <div class="lp-sidebar-actions">
+        <div class="lp-sidebar-actions lp-admin-only">
             <button class="lp-act-btn" onclick="LP.promptCreateFile()" title="Novo arquivo">
                 <i class="bi bi-file-earmark-plus"></i> Arquivo
             </button>
@@ -353,11 +361,14 @@
         <div id="toolbar">
             <div id="breadcrumb"></div>
             <div class="lp-toolbar-actions">
-                <button class="lp-tb-btn" id="btnSave" onclick="LP.saveCurrentFile()" disabled title="Salvar (Ctrl+S)">
+                <span class="lp-ro-badge" title="Seu usuário pode navegar, abrir e copiar arquivos, mas não alterá-los.">
+                    <i class="bi bi-eye"></i> Somente leitura
+                </span>
+                <button class="lp-tb-btn lp-admin-only" id="btnSave" onclick="LP.saveCurrentFile()" disabled title="Salvar (Ctrl+S)">
                     <i class="bi bi-floppy2"></i>
                     <span style="font-size:12px">Salvar</span>
                 </button>
-                <button class="lp-tb-btn" id="btnDeleteFile" onclick="LP.promptDeleteCurrentFile()" disabled title="Excluir arquivo" style="color:var(--red)">
+                <button class="lp-tb-btn lp-admin-only" id="btnDeleteFile" onclick="LP.promptDeleteCurrentFile()" disabled title="Excluir arquivo" style="color:var(--red)">
                     <i class="bi bi-trash3"></i>
                 </button>
                 <button class="lp-tb-btn" onclick="LP.navigateUp()" title="Subir um nível (Alt+↑)">
@@ -402,7 +413,7 @@
     </span>
     <span id="sb-path" style="color:rgba(255,255,255,.6);font-family:'JetBrains Mono',monospace;font-size:11px"></span>
     <div class="lp-sb-right">
-        <button class="lp-sb-term-btn" id="sbTermBtn" onclick="LP.openTerminalTab()" title="Abrir terminal em nova aba (Ctrl+`)">
+        <button class="lp-sb-term-btn lp-admin-only" id="sbTermBtn" onclick="LP.openTerminalTab()" title="Abrir terminal em nova aba (Ctrl+`)">
             <i class="bi bi-terminal"></i> Terminal
         </button>
         <span id="sb-lang" style="opacity:.7"></span>
@@ -418,17 +429,18 @@
 {{-- ── Context menu ── --}}
 <div id="ctx-menu">
     <div class="ctx-item" id="ctx-open"     onclick="LP_CTX.openFile()"><i class="bi bi-pencil" style="width:14px"></i> Abrir</div>
-    <div class="ctx-sep" id="ctx-sep-file"></div>
-    <div class="ctx-item" id="ctx-new-file" onclick="LP_CTX.promptNewFile()"><i class="bi bi-file-earmark-plus" style="width:14px"></i> Novo Arquivo</div>
-    <div class="ctx-item" id="ctx-new-dir"  onclick="LP_CTX.promptNewDir()"><i class="bi bi-folder-plus" style="width:14px"></i> Nova Pasta</div>
-    <div class="ctx-sep" id="ctx-sep-dir"></div>
-    <div class="ctx-item" onclick="LP_CTX.promptRename()"><i class="bi bi-cursor-text" style="width:14px"></i> Renomear</div>
-    <div class="ctx-item danger" onclick="LP_CTX.promptDelete()"><i class="bi bi-trash3" style="width:14px"></i> Excluir</div>
+    <div class="ctx-item" id="ctx-copy-path" onclick="LP_CTX.copyPath()"><i class="bi bi-clipboard" style="width:14px"></i> Copiar caminho</div>
+    <div class="ctx-sep lp-admin-only" id="ctx-sep-file"></div>
+    <div class="ctx-item lp-admin-only" id="ctx-new-file" onclick="LP_CTX.promptNewFile()"><i class="bi bi-file-earmark-plus" style="width:14px"></i> Novo Arquivo</div>
+    <div class="ctx-item lp-admin-only" id="ctx-new-dir"  onclick="LP_CTX.promptNewDir()"><i class="bi bi-folder-plus" style="width:14px"></i> Nova Pasta</div>
+    <div class="ctx-sep lp-admin-only" id="ctx-sep-dir"></div>
+    <div class="ctx-item lp-admin-only" onclick="LP_CTX.promptRename()"><i class="bi bi-cursor-text" style="width:14px"></i> Renomear</div>
+    <div class="ctx-item danger lp-admin-only" onclick="LP_CTX.promptDelete()"><i class="bi bi-trash3" style="width:14px"></i> Excluir</div>
     <div class="ctx-sep" id="ctx-sep-term"></div>
-    <div class="ctx-item" id="ctx-terminal"  onclick="LP_CTX.openInTerminal()"><i class="bi bi-terminal" style="width:14px"></i> Abrir no Terminal</div>
+    <div class="ctx-item lp-admin-only" id="ctx-terminal"  onclick="LP_CTX.openInTerminal()"><i class="bi bi-terminal" style="width:14px"></i> Abrir no Terminal</div>
     <div class="ctx-item" id="ctx-shortcut" onclick="LP_CTX.promptShortcut()"><i class="bi bi-signpost-split" style="width:14px"></i> Adicionar como Atalho</div>
-    <div class="ctx-sep"></div>
-    <div class="ctx-item" id="ctx-duplicate" onclick="LP_CTX.promptDuplicate()"><i class="bi bi-copy" style="width:14px"></i> Duplicar</div>
+    <div class="ctx-sep lp-admin-only"></div>
+    <div class="ctx-item lp-admin-only" id="ctx-duplicate" onclick="LP_CTX.promptDuplicate()"><i class="bi bi-copy" style="width:14px"></i> Duplicar</div>
 </div>
 
 {{-- ── Search modal ── --}}
@@ -695,6 +707,7 @@ const LP_CFG = {
     shortcuts    : {!! $shortcuts->map(fn($s) => ['id' => $s->id, 'name' => $s->name, 'path' => $s->path, 'icon' => $s->icon])->toJson() !!},
     pingUrl      : '{{ route('ping') }}',
     terminalUrl  : '{{ route('connections.terminal', $connection) }}',
+    isAdmin      : {{ auth()->user()->is_admin ? 'true' : 'false' }},
 };
 axios.defaults.headers.common['X-CSRF-TOKEN'] = LP_CFG.csrfToken;
 
@@ -1064,9 +1077,14 @@ const LP = {
 
     _doOpenFile(data) {
         const model = monaco.editor.createModel(data.content, data.language, monaco.Uri.parse('lp://' + data.path));
-        const tab   = { path: data.path, name: data.name, language: data.language, model, viewState: null, modified: false };
+        // Read-only when the server says what's shown isn't the exact file
+        // (see SFTPService::finishReadFile) or the user isn't an admin.
+        const tab   = { path: data.path, name: data.name, language: data.language, model, viewState: null, modified: false, readonly: !!data.readonly || !LP_CFG.isAdmin };
+
+        if (data.notice) this.toast('info', data.notice);
 
         model.onDidChangeContent(() => {
+            if (tab.readonly) return;
             tab.modified = true;
             this.renderTabs();
             const btn = document.getElementById('btnSave');
@@ -1080,7 +1098,7 @@ const LP = {
         // Recover content that failed to save earlier due to an expired session
         const backupKey = 'lp_unsaved_backup:' + data.path;
         const backup = localStorage.getItem(backupKey);
-        if (backup !== null && backup !== data.content) {
+        if (backup !== null && backup !== data.content && !tab.readonly) {
             if (confirm(`Foi encontrado um backup local não salvo de "${data.name}" (de uma falha de sessão anterior). Restaurar esse conteúdo?`)) {
                 model.setValue(backup);
                 tab.modified = true;
@@ -1106,7 +1124,9 @@ const LP = {
         document.getElementById('editor-container').style.display = 'block';
         if (editor) {
             editor.setModel(tab.model);
+            editor.updateOptions({ readOnly: tab.readonly });
             if (tab.viewState) editor.restoreViewState(tab.viewState);
+            if (tab.readonly) editor.revealLine(tab.model.getLineCount());
             editor.focus();
         }
         const btn = document.getElementById('btnSave');
@@ -1162,6 +1182,8 @@ const LP = {
         if (tabState.activeIdx < 0) return;
         const tab = tabState.tabs[tabState.activeIdx];
         if (!tab) return;
+        if (!LP_CFG.isAdmin) { this.toast('err', 'Seu usuário não tem permissão para alterar arquivos.'); return; }
+        if (tab.readonly) { this.toast('err', 'Este arquivo foi aberto somente leitura e não pode ser salvo daqui.'); return; }
         const content = tab.model.getValue();
 
         try {
@@ -1543,6 +1565,7 @@ const LP = {
 
     // ── Terminal ──────────────────────────────────────────────────────────────
     openTerminalTab(cwd) {
+        if (!LP_CFG.isAdmin) { this.toast('err', 'Acesso ao terminal restrito a administradores.'); return; }
         const path = cwd || this.currentPath || treeState.root || '';
         const url = LP_CFG.terminalUrl + (path ? '?path=' + encodeURIComponent(path) : '');
         window.open(url, '_blank', 'noopener');
@@ -1692,7 +1715,6 @@ const LP_CTX = {
         const menu   = document.getElementById('ctx-menu');
 
         document.getElementById('ctx-open').style.display      = isFile ? '' : 'none';
-        document.getElementById('ctx-sep-file').style.display  = isFile ? '' : 'none';
         document.getElementById('ctx-new-file').style.display  = isDir  ? '' : 'none';
         document.getElementById('ctx-new-dir').style.display   = isDir  ? '' : 'none';
         document.getElementById('ctx-sep-dir').style.display   = isDir  ? '' : 'none';
@@ -1723,6 +1745,28 @@ const LP_CTX = {
     openInTerminal()   { this.hide(); LP.openTerminalTab(this.path); },
     promptShortcut()   { this.hide(); LP.promptAddShortcut(this.path); },
     promptDuplicate()  { this.hide(); LP.promptDuplicate(this.path, this.type); },
+
+    copyPath() {
+        this.hide();
+        const text = this.path;
+        const done = () => LP.toast('ok', 'Caminho copiado.');
+
+        // navigator.clipboard only exists on HTTPS/localhost — the panel is
+        // usually reached over plain HTTP by IP, so fall back to execCommand.
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done, () => LP.toast('err', 'Não foi possível copiar.'));
+            return;
+        }
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity  = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy') ? done() : LP.toast('err', 'Não foi possível copiar.'); }
+        catch { LP.toast('err', 'Não foi possível copiar.'); }
+        ta.remove();
+    },
 };
 
 // ─── Monaco editor ────────────────────────────────────────────────────────────

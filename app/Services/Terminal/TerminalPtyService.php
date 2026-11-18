@@ -3,8 +3,7 @@
 namespace App\Services\Terminal;
 
 use App\Models\Connection;
-use Illuminate\Support\Facades\Storage;
-use phpseclib3\Crypt\PublicKeyLoader;
+use App\Services\SSH\SshKeyLoader;
 use phpseclib3\Net\SSH2;
 use RuntimeException;
 use Throwable;
@@ -166,14 +165,6 @@ class TerminalPtyService
 
     private function loadKey(Connection $connection): mixed
     {
-        if (empty($connection->ssh_key_path) || ! Storage::exists($connection->ssh_key_path)) {
-            throw new RuntimeException('Chave SSH não encontrada. Recadastre a conexão.');
-        }
-
-        try {
-            return PublicKeyLoader::load(Storage::get($connection->ssh_key_path));
-        } catch (Throwable) {
-            throw new RuntimeException('Chave SSH inválida ou corrompida.');
-        }
+        return SshKeyLoader::fromConnection($connection);
     }
 }

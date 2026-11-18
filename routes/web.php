@@ -38,7 +38,10 @@ Route::middleware('auth')->group(function () {
     Route::post('connections/{connection}/duplicate', [ConnectionController::class, 'duplicate'])
         ->name('connections.duplicate');
 
+    // Terminal = full shell on the server, so admins only (a non-admin with a
+    // shell could do everything the read-only Explorer blocks below).
     Route::get('connections/{connection}/terminal', [TerminalController::class, 'openTab'])
+        ->middleware('admin')
         ->name('connections.terminal');
 
     // ── Quick connect (creates a Connection on the fly, then opens Explorer) ──
@@ -52,16 +55,20 @@ Route::middleware('auth')->group(function () {
         Route::post('/connect',      [ExplorerController::class, 'connect'])       ->name('connect');
         Route::get('/directory',     [ExplorerController::class, 'directory'])     ->name('directory');
         Route::get('/file',          [ExplorerController::class, 'readFile'])      ->name('file.read');
-        Route::post('/file/save',    [ExplorerController::class, 'saveFile'])      ->name('file.save');
         Route::get('/search',        [ExplorerController::class, 'search'])        ->name('search');
         Route::post('/favorites',    [ExplorerController::class, 'addFavorite'])   ->name('favorites.add');
         Route::delete('/favorites',  [ExplorerController::class, 'removeFavorite'])->name('favorites.remove');
 
-        Route::post('/fs/file',      [ExplorerController::class, 'createFile'])   ->name('fs.file');
-        Route::post('/fs/dir',       [ExplorerController::class, 'createDir'])    ->name('fs.dir');
-        Route::post('/fs/rename',    [ExplorerController::class, 'rename'])        ->name('fs.rename');
-        Route::delete('/fs/delete',  [ExplorerController::class, 'delete'])        ->name('fs.delete');
-        Route::post('/fs/duplicate', [ExplorerController::class, 'duplicateFile'])->name('fs.duplicate');
+        // Anything that changes files on the remote server: admins only.
+        // Non-admins get the Explorer read-only (browse, open, copy).
+        Route::middleware('admin')->group(function () {
+            Route::post('/file/save',    [ExplorerController::class, 'saveFile'])      ->name('file.save');
+            Route::post('/fs/file',      [ExplorerController::class, 'createFile'])   ->name('fs.file');
+            Route::post('/fs/dir',       [ExplorerController::class, 'createDir'])    ->name('fs.dir');
+            Route::post('/fs/rename',    [ExplorerController::class, 'rename'])        ->name('fs.rename');
+            Route::delete('/fs/delete',  [ExplorerController::class, 'delete'])        ->name('fs.delete');
+            Route::post('/fs/duplicate', [ExplorerController::class, 'duplicateFile'])->name('fs.duplicate');
+        });
 
         Route::post('/shortcuts',              [ExplorerController::class, 'addShortcut'])    ->name('shortcuts.add');
         Route::delete('/shortcuts/{shortcut}', [ExplorerController::class, 'removeShortcut'])->name('shortcuts.remove');
