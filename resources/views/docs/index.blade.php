@@ -446,7 +446,9 @@
 @endpush
 
 @push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.10/vfs_fonts.min.js"></script>
+<script src="{{ asset('js/docs-pdf.js') }}?v={{ filemtime(public_path('js/docs-pdf.js')) }}"></script>
 <script>
 // ── State ───────────────────────────────────────────────────────
 let currentCollection = null;
@@ -677,22 +679,22 @@ function buildHtml(col) {
 
     let lastFolder = null;
 
-    for (const ep of col.endpoints) {
+    col.endpoints.forEach((ep, idx) => {
         if (ep.folder !== lastFolder) {
             lastFolder = ep.folder;
             if (ep.folder) {
                 html += `<div class="doc-folder"><i class="bi bi-folder2-open" style="margin-right:.4rem"></i>${esc(ep.folder)}</div>`;
             }
         }
-        html += buildEndpoint(ep);
-    }
+        html += buildEndpoint(ep, idx);
+    });
 
     return html;
 }
 
-function buildEndpoint(ep) {
+function buildEndpoint(ep, idx) {
     const methodClass = 'method-' + (ep.method.toUpperCase());
-    let html = `<div class="doc-endpoint">`;
+    let html = `<div class="doc-endpoint" data-ep="${idx}">`;
 
     // ── Request (header + descrição + parâmetros) — bloco que não quebra ──
     html += `<div class="doc-request-block">`;
@@ -719,14 +721,14 @@ function buildEndpoint(ep) {
                     </tr>
                 </thead>
                 <tbody>`;
-        for (const p of ep.allParams) {
+        ep.allParams.forEach((p, pIdx) => {
             const srcLabel = p.source === 'query' ? 'query' : (p.source === 'form' ? 'form' : 'body');
             html += `<tr>
                 <td><span class="param-key">${esc(p.key)}</span><span class="param-source ${p.source}">${srcLabel}</span></td>
                 <td><code style="font-size:11.5px;font-family:'JetBrains Mono',monospace;color:#475569">${esc(p.value)}</code></td>
-                <td class="doc-td-editable" contenteditable="true" data-placeholder="—" style="color:#64748b">${esc(p.description)}</td>
+                <td class="doc-td-editable" contenteditable="true" data-param="${pIdx}" data-placeholder="—" style="color:#64748b">${esc(p.description)}</td>
             </tr>`;
-        }
+        });
         html += `</tbody></table></div>`;
     } else if (!ep.responses.length) {
         html += `<div class="doc-section"><p class="doc-empty">Sem parâmetros</p></div>`;
@@ -779,31 +781,93 @@ function esc(str) {
 }
 
 // ── PDF generation ──────────────────────────────────────────────
+// Real text PDF via pdfmake (layout lives in public/js/docs-pdf.js), built
+// from the collection data plus whatever was edited in the preview — not a
+// screenshot of the page, so nothing depends on scroll position or screen size.
+
+const MONO_FONT_URL = 'https://cdn.jsdelivr.net/npm/@expo-google-fonts/jetbrains-mono@0.2.3/JetBrainsMono_400Regular.ttf';
+let fontsReady = null;
+
+/** Registers Roboto (bundled with pdfmake) + a monospace font for code/URLs. */
+function ensureFonts() {
+    if (fontsReady) return fontsReady;
+
+    fontsReady = (async () => {
+        const roboto = {
+            normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf',
+            italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf',
+        };
+        let mono = roboto; // fallback: code in Roboto if the mono font can't be fetched
+
+        try {
+            const res = await fetch(MONO_FONT_URL);
+            if (!res.ok) throw new Error(res.status);
+            const bytes = new Uint8Array(await res.arrayBuffer());
+            let bin = '';
+            for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+            pdfMake.vfs['JetBrainsMono-Regular.ttf'] = btoa(bin);
+            const f = 'JetBrainsMono-Regular.ttf';
+            mono = { normal: f, bold: f, italics: f, bolditalics: f };
+        } catch (e) {
+            console.warn('Fonte monoespaçada indisponível, usando Roboto no código.', e);
+        }
+
+        pdfMake.fonts = { Roboto: roboto, Mono: mono };
+    })();
+
+    return fontsReady;
+}
+
+/** The parsed collection with the edits made in the preview applied. */
+function collectionWithEdits() {
+    const col = structuredClone(currentCollection);
+
+    document.querySelectorAll('#doc-content .doc-endpoint[data-ep]').forEach(card => {
+        const ep = col.endpoints[+card.dataset.ep];
+        if (!ep) return;
+
+        const url  = card.querySelector('.doc-url');
+        const desc = card.querySelector('.doc-desc');
+        if (url)  ep.url = url.innerText.trim();
+        if (desc) ep.description = desc.innerText.trim();
+
+        card.querySelectorAll('[data-param]').forEach(td => {
+            const p = ep.allParams[+td.dataset.param];
+            if (p) p.description = td.innerText.trim();
+        });
+    });
+
+    return col;
+}
+
 document.getElementById('btn-pdf').addEventListener('click', async () => {
+    if (!currentCollection) return;
+
     const btn = document.getElementById('btn-pdf');
     btn.disabled = true;
     btn.innerHTML = '<i class="bi bi-arrow-repeat lp-spin"></i> Gerando...';
 
-    const el = document.getElementById('doc-content');
-    const filename = (currentCollection?.name || 'api-documentation')
+    const filename = (currentCollection.name || 'api-documentation')
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
         .replace(/[^a-z0-9\-_ ]/gi, '')
         .trim()
         .replace(/\s+/g, '-')
         .toLowerCase() + '.pdf';
 
-    const opt = {
-        margin:      [14, 12, 14, 12],
-        filename,
-        image:       { type: 'jpeg', quality: 0.95 },
-        html2canvas: { scale: 1.5, useCORS: true, backgroundColor: '#f8f9fa', logging: false },
-        jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:   { mode: 'css', avoid: '.doc-request-block, .doc-endpoint-header, .doc-section-title, .doc-response-header, .doc-folder' },
-    };
-
-    await html2pdf().set(opt).from(el).save();
-
-    btn.disabled = false;
-    btn.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> Gerar PDF';
+    try {
+        await ensureFonts();
+        const docDefinition = DocsPdf.build(collectionWithEdits());
+        await new Promise((resolve, reject) => {
+            try { pdfMake.createPdf(docDefinition).download(filename, resolve); }
+            catch (e) { reject(e); }
+        });
+    } catch (e) {
+        console.error(e);
+        alert('Não foi possível gerar o PDF: ' + (e?.message || e));
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-file-earmark-pdf"></i> Gerar PDF';
+    }
 });
 
 // ── Reset ───────────────────────────────────────────────────────
