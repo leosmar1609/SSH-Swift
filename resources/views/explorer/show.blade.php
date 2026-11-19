@@ -193,6 +193,17 @@
         .lp-shortcut-del, .lp-shortcut-edit { background: transparent; border: none; color: var(--subtle); cursor: pointer; padding: 2px 4px; border-radius: 3px; font-size: 11px; line-height: 1; }
         .lp-shortcut-edit:hover { color: var(--blue); background: rgba(88,166,255,.15); }
         .lp-shortcut-del:hover  { color: var(--red);  background: rgba(248,81,73,.15); }
+        /* Reordenar atalhos: arrastar e soltar + ordenar A→Z / Z→A */
+        .lp-shortcut-btn .sc-grip { position: absolute; left: -1px; top: 50%; transform: translateY(-50%); font-size: 11px; color: var(--subtle); opacity: 0; cursor: grab; transition: opacity .12s; }
+        .lp-shortcut-btn:hover .sc-grip { opacity: 1; }
+        .lp-shortcut-btn.sc-dragging { opacity: .4; }
+        .lp-shortcut-btn.sc-drop-before { box-shadow: 0 -2px 0 0 var(--blue); }
+        .lp-shortcut-btn.sc-drop-after  { box-shadow: 0 2px 0 0 var(--blue); }
+        .lp-shortcuts-body.sc-sorting .lp-shortcut-btn:hover .lp-sc-btns { display: none; }
+        .lp-sec-actions { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+        .lp-section-hdr:hover .lp-sec-actions, .lp-sec-actions:focus-within { opacity: 1; }
+        .lp-sec-actions button { background: transparent; border: none; color: var(--subtle); padding: 1px 4px; border-radius: 3px; font-size: 12px; line-height: 1; cursor: pointer; }
+        .lp-sec-actions button:hover { color: var(--text); background: rgba(255,255,255,.08); }
         .lp-shortcuts-empty { font-size: 12px; color: var(--subtle); text-align: center; padding: 8px 4px; }
         .lp-sc-add { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 5px 10px; border-radius: 5px; background: transparent; border: 1px dashed var(--border); color: var(--subtle); cursor: pointer; font-size: 12px; font-family: inherit; width: 100%; transition: background .12s, color .12s, border-color .12s; }
         .lp-sc-add:hover { border-color: var(--blue-dim); color: var(--blue); background: rgba(88,166,255,.05); }
@@ -279,6 +290,10 @@
                     <i class="bi bi-chevron-right lp-arrow" style="transform:rotate(90deg)"></i>
                     <i class="bi bi-signpost-split-fill" style="color:var(--blue);font-size:10px"></i>
                     Atalhos
+                    <span class="lp-sec-actions">
+                        <button type="button" onclick="event.stopPropagation();LP.sortShortcuts('asc')" title="Ordenar de A a Z"><i class="bi bi-sort-alpha-down"></i></button>
+                        <button type="button" onclick="event.stopPropagation();LP.sortShortcuts('desc')" title="Ordenar de Z a A"><i class="bi bi-sort-alpha-up-alt"></i></button>
+                    </span>
                 </div>
                 <div class="lp-section-body lp-shortcuts-body" id="shortcutsBody">
                     @forelse($shortcuts as $sc)
@@ -287,7 +302,9 @@
                             onclick="LP.navigateTo('{{ $sc->path }}')"
                             data-id="{{ $sc->id }}"
                             data-path="{{ $sc->path }}"
-                            title="{{ $sc->path }}">
+                            draggable="true"
+                            title="{{ $sc->path }} (arraste para mudar a ordem)">
+                        <i class="bi bi-grip-vertical sc-grip"></i>
                         <i class="bi {{ $sc->icon }} sc-icon" style="color:var(--blue)"></i>
                         <span class="sc-name">{{ $sc->name }}</span>
                         <span class="lp-sc-btns">
@@ -775,6 +792,7 @@ const LP = {
 
     async init() {
         this.setupKeyboardShortcuts();
+        this.setupShortcutReorder();
         this.setupSearchModal();
         this.setupTreeFilter();
         this.openSection('explorerSection');
@@ -1505,7 +1523,7 @@ const LP = {
                 const btn = document.getElementById('sc-btn-' + id);
                 if (btn) {
                     btn.dataset.path = sc.path;
-                    btn.title        = sc.path;
+                    btn.title        = sc.path + ' (arraste para mudar a ordem)';
                     btn.querySelector('.sc-icon').className = `bi ${sc.icon} sc-icon`;
                     btn.querySelector('.sc-name').textContent = sc.name;
                     // Update onclick for edit button
@@ -1533,8 +1551,10 @@ const LP = {
         btn.id           = 'sc-btn-' + sc.id;
         btn.dataset.id   = sc.id;
         btn.dataset.path = sc.path;
-        btn.title        = sc.path;
-        btn.innerHTML = `<i class="bi ${sc.icon} sc-icon" style="color:var(--blue)"></i>
+        btn.title        = sc.path + ' (arraste para mudar a ordem)';
+        btn.draggable    = true;
+        btn.innerHTML = `<i class="bi bi-grip-vertical sc-grip"></i>
+                         <i class="bi ${sc.icon} sc-icon" style="color:var(--blue)"></i>
                          <span class="sc-name">${this.esc(sc.name)}</span>
                          <span class="lp-sc-btns">
                              <span class="lp-shortcut-edit" onclick="event.stopPropagation();LP.promptEditShortcut(${sc.id},'${sc.name.replace(/'/g,"\\'")}','${sc.path.replace(/'/g,"\\'")}','${sc.icon}')" title="Editar atalho"><i class="bi bi-pencil"></i></span>
@@ -1542,6 +1562,109 @@ const LP = {
                          </span>`;
         btn.addEventListener('click', () => this.navigateTo(sc.path));
         body.insertBefore(btn, addBtn || null);
+    },
+
+    // ── Reordenar atalhos ────────────────────────────────────────────────────
+    _scButtons() {
+        return [...document.querySelectorAll('#shortcutsBody .lp-shortcut-btn')];
+    },
+
+    /** Põe os botões na ordem dos ids (antes do "+ Adicionar atalho"). */
+    _placeShortcuts(ids) {
+        const body   = document.getElementById('shortcutsBody');
+        const addBtn = body.querySelector('.lp-sc-add');
+        ids.forEach(id => {
+            const btn = document.getElementById('sc-btn-' + id);
+            if (btn) body.insertBefore(btn, addBtn || null);
+        });
+    },
+
+    /** Grava a ordem atual da tela; se falhar, volta para a ordem anterior. */
+    async _saveShortcutOrder(previousIds) {
+        const ids = this._scButtons().map(b => +b.dataset.id);
+        if (ids.join(',') === previousIds.join(',')) return;
+
+        const byId = new Map(LP_CFG.shortcuts.map(s => [s.id, s]));
+        LP_CFG.shortcuts = ids.map(id => byId.get(id)).filter(Boolean);
+
+        try {
+            const { data } = await axios.post(`${LP_CFG.apiBase}/shortcuts/reorder`, { ids });
+            if (!data.success) throw new Error(data.message);
+        } catch (e) {
+            this._placeShortcuts(previousIds);
+            LP_CFG.shortcuts = previousIds.map(id => byId.get(id)).filter(Boolean);
+            this.toast('err', 'Não foi possível salvar a ordem dos atalhos.');
+        }
+    },
+
+    sortShortcuts(dir) {
+        const btns = this._scButtons();
+        if (btns.length < 2) return;
+        const before = btns.map(b => +b.dataset.id);
+        const name = b => b.querySelector('.sc-name')?.textContent.trim() || '';
+        btns.sort((a, b) => name(a).localeCompare(name(b), 'pt-BR', { sensitivity: 'base', numeric: true }) * (dir === 'desc' ? -1 : 1));
+        this._placeShortcuts(btns.map(b => +b.dataset.id));
+        this._saveShortcutOrder(before);
+        this.openSection('shortcutsSection');
+        this.toast('info', dir === 'desc' ? 'Atalhos ordenados de Z a A.' : 'Atalhos ordenados de A a Z.');
+    },
+
+    setupShortcutReorder() {
+        const body = document.getElementById('shortcutsBody');
+        if (!body) return;
+        let dragging = null, before = null;
+
+        const clearMarks = () => body.querySelectorAll('.sc-drop-before, .sc-drop-after')
+            .forEach(el => el.classList.remove('sc-drop-before', 'sc-drop-after'));
+
+        body.addEventListener('dragstart', e => {
+            const btn = e.target.closest?.('.lp-shortcut-btn');
+            if (!btn) return;
+            dragging = btn;
+            before = this._scButtons().map(b => +b.dataset.id);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', btn.dataset.id);
+            body.classList.add('sc-sorting');
+            requestAnimationFrame(() => btn.classList.add('sc-dragging'));
+        });
+
+        body.addEventListener('dragover', e => {
+            if (!dragging) return;          // só reage a atalhos, não a arquivos de fora
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            clearMarks();
+            // Mira no atalho sob o cursor; nas sobras (fim da lista), cola após o último.
+            let target = e.target.closest?.('.lp-shortcut-btn');
+            let after;
+            if (target) {
+                const r = target.getBoundingClientRect();
+                after = e.clientY > r.top + r.height / 2;
+            } else {
+                const all = this._scButtons();
+                target = all[all.length - 1];
+                after = true;
+            }
+            if (target && target !== dragging) target.classList.add(after ? 'sc-drop-after' : 'sc-drop-before');
+        });
+
+        body.addEventListener('drop', e => {
+            if (!dragging) return;
+            e.preventDefault();
+            const mark = body.querySelector('.sc-drop-before, .sc-drop-after');
+            if (mark) {
+                if (mark.classList.contains('sc-drop-after')) mark.after(dragging);
+                else mark.before(dragging);
+            }
+            clearMarks();
+            this._saveShortcutOrder(before);
+        });
+
+        body.addEventListener('dragend', () => {
+            dragging?.classList.remove('sc-dragging');
+            body.classList.remove('sc-sorting');
+            clearMarks();
+            dragging = null;
+        });
     },
 
     _checkShortcutsEmpty() {

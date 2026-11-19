@@ -71,6 +71,7 @@ Route::middleware('auth')->group(function () {
         });
 
         Route::post('/shortcuts',              [ExplorerController::class, 'addShortcut'])    ->name('shortcuts.add');
+        Route::post('/shortcuts/reorder',      [ExplorerController::class, 'reorderShortcuts'])->name('shortcuts.reorder');
         Route::delete('/shortcuts/{shortcut}', [ExplorerController::class, 'removeShortcut'])->name('shortcuts.remove');
         Route::patch('/shortcuts/{shortcut}',  [ExplorerController::class, 'updateShortcut'])->name('shortcuts.update');
     });

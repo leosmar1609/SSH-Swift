@@ -7,6 +7,7 @@ use App\Models\ConnectionShortcut;
 use App\Services\Explorer\FavoriteService;
 use App\Services\Explorer\FileExplorerService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Throwable;
@@ -259,6 +260,37 @@ class ExplorerController extends Controller
             abort_if($shortcut->connection_id !== $connection->id, 403);
             $shortcut->update($request->only(['name', 'path', 'icon', 'sort_order']));
             return response()->json(['success' => true, 'shortcut' => $this->shortcutData($shortcut->fresh())]);
+        } catch (Throwable $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Salva a ordem dos atalhos (arrastar e soltar / ordenar A→Z). Recebe os
+     * ids na ordem desejada; ids de outra conexão são ignorados e atalhos que
+     * não vieram na lista (ex.: criados em outra aba) vão para o fim.
+     */
+    public function reorderShortcuts(Connection $connection, Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids'   => ['required', 'array', 'max:1000'],
+            'ids.*' => ['integer', 'distinct'],
+        ]);
+
+        try {
+            $current = $connection->shortcuts()->pluck('sort_order', 'id'); // já ordenado
+            $wanted  = array_values(array_filter(array_map('intval', $data['ids']), fn ($id) => $current->has($id)));
+            $order   = array_merge($wanted, array_values(array_diff($current->keys()->all(), $wanted)));
+
+            DB::transaction(function () use ($connection, $order, $current) {
+                foreach ($order as $pos => $id) {
+                    if ((int) $current[$id] !== $pos) {
+                        $connection->shortcuts()->whereKey($id)->update(['sort_order' => $pos]);
+                    }
+                }
+            });
+
+            return response()->json(['success' => true, 'ids' => $order]);
         } catch (Throwable $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()]);
         }
