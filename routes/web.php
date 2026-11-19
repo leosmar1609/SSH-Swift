@@ -78,6 +78,11 @@ Route::middleware('auth')->group(function () {
     // ── Docs generator ──────────────────────────────────────────────────────
     Route::get('/docs', fn() => view('docs.index'))->name('docs.index');
 
+    // ── Guia do Log da API (documentação para leitura do log + analisador) ──
+    Route::get('/guia-log', fn() => view('logguide.index', [
+        'sample' => (string) @file_get_contents(resource_path('logguide/exemplo-log.txt')),
+    ]))->name('logguide.index');
+
     // ── HTTP Client ──────────────────────────────────────────────────────────
     Route::get('/httpclient', fn() => view('httpclient.index'))->name('httpclient.index');
     Route::post('/httpclient/proxy', [\App\Http\Controllers\HttpClientController::class, 'proxy'])->name('httpclient.proxy');

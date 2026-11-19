@@ -544,6 +544,11 @@
             <i class="bi bi-file-earmark-pdf me-1"></i>Docs
         </a>
 
+        <a href="{{ route('logguide.index') }}"
+           class="lp-nav-link {{ request()->routeIs('logguide.*') ? 'active' : '' }}">
+            <i class="bi bi-journal-code me-1"></i>Guia do Log
+        </a>
+
         <a href="{{ route('httpclient.index') }}"
            class="lp-nav-link"
            target="_blank" rel="noopener">

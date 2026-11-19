@@ -1,0 +1,94 @@
+25/03/2026 08:47:53:334931 (Teste_Oktor) (INICIO (consultaContrato)) CallID: Teste_Oktor
+25/03/2026 08:47:53:334944 (Teste_Oktor) (INICIO (consultaContrato)) Type: INICIO (consultaContrato)
+25/03/2026 08:47:53:335205 (Teste_Oktor) (Tentativas (consultaContrato)) CallID: Teste_Oktor
+25/03/2026 08:47:53:335216 (Teste_Oktor) (Tentativas (consultaContrato)) Type: Tentativas (consultaContrato)
+25/03/2026 08:47:53:335221 () (Teste_Oktor)  Tentativas:1
+25/03/2026 08:47:53:335721 (Teste_Oktor) (CamposValues (consultaContrato)) CallID: Teste_Oktor
+25/03/2026 08:47:53:335730 (Teste_Oktor) (CamposValues (consultaContrato)) Type: CamposValues (consultaContrato)
+25/03/2026 08:47:53:335736 (Teste_Oktor) (CamposValues (consultaContrato))  crm => pefisa_negociacao
+25/03/2026 08:47:53:335741 (Teste_Oktor) (CamposValues (consultaContrato))  idambiente => 398
+25/03/2026 08:47:53:335746 (Teste_Oktor) (CamposValues (consultaContrato))  idcliente => 1707117
+25/03/2026 08:47:53:335750 (Teste_Oktor) (CamposValues (consultaContrato))  idcontrato => 1707090
+25/03/2026 08:47:53:335755 (Teste_Oktor) (CamposValues (consultaContrato))  callid => Teste_Oktor
+25/03/2026 08:47:53:335987 (Teste_Oktor) (WebServer (URL) - api/calculo/parcela) CallID: Teste_Oktor
+25/03/2026 08:47:53:336052 (Teste_Oktor) (WebServer (URL) - api/calculo/parcela) Type: WebServer (URL) - api/calculo/parcela
+25/03/2026 08:47:53:336058 () (Teste_Oktor)  https://api.concilig.com.br/cobranca/
+25/03/2026 08:47:53:336267 (Teste_Oktor) (WebServer(Envio) - api/calculo/parcela) CallID: Teste_Oktor
+25/03/2026 08:47:53:336274 (Teste_Oktor) (WebServer(Envio) - api/calculo/parcela) Type: WebServer(Envio) - api/calculo/parcela
+25/03/2026 08:47:53:336280 (1) (Teste_Oktor)  IdAmbiente => 398
+25/03/2026 08:47:53:336285 (1) (Teste_Oktor)  IdCliente => 1707117
+25/03/2026 08:47:53:336290 (1) (Teste_Oktor)  IdContrato => 1707090
+25/03/2026 08:47:53:336294 (1) (Teste_Oktor)  IdCampanha => 
+25/03/2026 08:47:53:336568 (Teste_Oktor) (Dados[api/calculo/parcela][JSON]) CallID: Teste_Oktor
+25/03/2026 08:47:53:336576 (Teste_Oktor) (Dados[api/calculo/parcela][JSON]) Type: Dados[api/calculo/parcela][JSON]
+25/03/2026 08:47:53:336582 () (Teste_Oktor)  {"IdAmbiente":"398","IdCliente":"1707117","IdContrato":"1707090","IdCampanha":null}
+25/03/2026 08:47:53:336774 (Teste_Oktor) (URL[api/calculo/parcela]) CallID: Teste_Oktor
+25/03/2026 08:47:53:336795 (Teste_Oktor) (URL[api/calculo/parcela]) Type: URL[api/calculo/parcela]
+25/03/2026 08:47:53:336801 () (Teste_Oktor)  https://api.concilig.com.br/cobranca/api/calculo/parcela
+25/03/2026 08:47:53:336990 (Teste_Oktor) (Header[api/calculo/parcela]a) CallID: Teste_Oktor
+25/03/2026 08:47:53:336997 (Teste_Oktor) (Header[api/calculo/parcela]a) Type: Header[api/calculo/parcela]a
+25/03/2026 08:47:53:337002 (Teste_Oktor) (Header[api/calculo/parcela]a)  0 => Authorization:Basic SEU_TOKEN_AQUI
+25/03/2026 08:47:53:337007 (Teste_Oktor) (Header[api/calculo/parcela]a)  1 => Content-Type: application/json; charset=utf-8
+25/03/2026 08:47:53:337027 (Teste_Oktor) (Header[api/calculo/parcela]a)  2 => Content-Length: 83
+25/03/2026 08:47:53:441110 (Teste_Oktor) (RetornoObj[api/calculo/parcela]) CallID: Teste_Oktor
+25/03/2026 08:47:53:441122 (Teste_Oktor) (RetornoObj[api/calculo/parcela]) Type: RetornoObj[api/calculo/parcela]
+25/03/2026 08:47:53:441129 () (Teste_Oktor)  {"Campanhas":[],"ContratoCalculoParcelas":[{"DiasAtraso":1190,"Acrescimo":0.0,"Comissao":0.0,"Honorario":0.00,"Desconto":0.0,"Multa":0.00,"Juros":0.00,"ValorTotal":1450.67,"Taxa":0.0,"ValorDesconto":0.0,"ValorMinimoCobranca":0.0,"ValorOriginalParcela":0.0,"ValorOriginal":0.0,"ValorAtual":1450.67,"SaldoLegado":0.0,"SaldoPendente":19460.84,"Vencimento":"2022-12-21T00:00:00","NumeroContrato":"90020776062","Descricao":null,"Carteira":null,"Loja":null,"IdCampanhaProduto":0,"Selecionado":false,"ValorDevedor":0.0,"IdOrigem":0,"CartaoNext":false,"Id":6045734,"DataCadastro":"0001-01-01T00:00:00","DataImportacao":"0001-01-01T00:00:00","Sucesso":true}],"Sucesso":true}
+25/03/2026 08:47:53:460053 (Teste_Oktor) (RetornoHeader[api/calculo/parcela]) CallID: Teste_Oktor
+25/03/2026 08:47:53:460062 (Teste_Oktor) (RetornoHeader[api/calculo/parcela]) Type: RetornoHeader[api/calculo/parcela]
+25/03/2026 08:47:53:460071 () (Teste_Oktor)  200
+25/03/2026 08:47:53:477834 (Teste_Oktor) (Retorno[api/calculo/parcela]-Array) CallID: Teste_Oktor
+25/03/2026 08:47:53:477844 (Teste_Oktor) (Retorno[api/calculo/parcela]-Array) Type: Retorno[api/calculo/parcela]-Array
+25/03/2026 08:47:53:477851 (1) (1)  DiasAtraso => 1190
+25/03/2026 08:47:53:477858 (1) (1)  Acrescimo => 0
+25/03/2026 08:47:53:477863 (1) (1)  Comissao => 0
+25/03/2026 08:47:53:477868 (1) (1)  Honorario => 0
+25/03/2026 08:47:53:477873 (1) (1)  Desconto => 0
+25/03/2026 08:47:53:477877 (1) (1)  Multa => 0
+25/03/2026 08:47:53:477882 (1) (1)  Juros => 0
+25/03/2026 08:47:53:477887 (1) (1)  ValorTotal => 1450.67
+25/03/2026 08:47:53:477892 (1) (1)  Taxa => 0
+25/03/2026 08:47:53:477897 (1) (1)  ValorDesconto => 0
+25/03/2026 08:47:53:477902 (1) (1)  ValorMinimoCobranca => 0
+25/03/2026 08:47:53:477906 (1) (1)  ValorOriginalParcela => 0
+25/03/2026 08:47:53:477911 (1) (1)  ValorOriginal => 0
+25/03/2026 08:47:53:477916 (1) (1)  ValorAtual => 1450.67
+25/03/2026 08:47:53:477921 (1) (1)  SaldoLegado => 0
+25/03/2026 08:47:53:477926 (1) (1)  SaldoPendente => 19460.84
+25/03/2026 08:47:53:477931 (1) (1)  Vencimento => 2022-12-21T00:00:00
+25/03/2026 08:47:53:477935 (1) (1)  NumeroContrato => 90020776062
+25/03/2026 08:47:53:477940 (1) (1)  Descricao => 
+25/03/2026 08:47:53:477945 (1) (1)  Carteira => 
+25/03/2026 08:47:53:477949 (1) (1)  Loja => 
+25/03/2026 08:47:53:477954 (1) (1)  IdCampanhaProduto => 0
+25/03/2026 08:47:53:477958 (1) (1)  Selecionado => 
+25/03/2026 08:47:53:477963 (1) (1)  ValorDevedor => 0
+25/03/2026 08:47:53:477968 (1) (1)  IdOrigem => 0
+25/03/2026 08:47:53:477972 (1) (1)  CartaoNext => 
+25/03/2026 08:47:53:477977 (1) (1)  Id => 6045734
+25/03/2026 08:47:53:477981 (1) (1)  DataCadastro => 0001-01-01T00:00:00
+25/03/2026 08:47:53:477986 (1) (1)  DataImportacao => 0001-01-01T00:00:00
+25/03/2026 08:47:53:477990 (1) (1)  Sucesso => 1
+25/03/2026 08:47:53:477995 (Teste_Oktor) (Retorno[api/calculo/parcela]-Array)  Sucesso => 1
+25/03/2026 08:47:53:512682 (Teste_Oktor) (WebServer(Retorno) - Tratadoapi/calculo/parcela) CallID: Teste_Oktor
+25/03/2026 08:47:53:512707 (Teste_Oktor) (WebServer(Retorno) - Tratadoapi/calculo/parcela) Type: WebServer(Retorno) - Tratadoapi/calculo/parcela
+25/03/2026 08:47:53:512714 (1) (1)  IdParcela => 6045734
+25/03/2026 08:47:53:512719 (1) (1)  DiasAtraso => 1190
+25/03/2026 08:47:53:512724 (1) (1)  NumeroContrato => 90020776062
+25/03/2026 08:47:53:512729 (1) (1)  vencimento => 21/12/2022
+25/03/2026 08:47:53:512734 (1) (1)  IdCampanhaProduto => 0
+25/03/2026 08:47:53:512738 (1) (1)  ValorAtual => 1450,67
+25/03/2026 08:47:53:512744 (1) (1)  ValorOriginal => 0
+25/03/2026 08:47:53:512749 (1) (1)  SaldoPendente => 19460.84
+25/03/2026 08:47:53:512754 (1) (1)  SaldoPendenteBR => 19460,84
+25/03/2026 08:49:03:197410 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (RetornoObj[api/calculo/formaPagamento]) CallID: uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871
+25/03/2026 08:49:03:197424 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (RetornoObj[api/calculo/formaPagamento]) Type: RetornoObj[api/calculo/formaPagamento]
+25/03/2026 08:49:03:197433 () (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871)  {"FormasPagamento":[],"Sucesso":false,"CodigoErro":0,"Mensagem":"O vencimento deve ser menor que 31/03/2026"}
+25/03/2026 08:49:03:198032 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (RetornoHeader[api/calculo/formaPagamento]) CallID: uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871
+25/03/2026 08:49:03:198040 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (RetornoHeader[api/calculo/formaPagamento]) Type: RetornoHeader[api/calculo/formaPagamento]
+25/03/2026 08:49:03:198046 () (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871)  200
+25/03/2026 08:49:03:200229 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (Error (consultaProposta)) CallID: uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871
+25/03/2026 08:49:03:200240 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (Error (consultaProposta)) Type: Error (consultaProposta)
+25/03/2026 08:49:03:200246 () (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871)  Erro: O vencimento deve ser menor que 31/03/2026
+25/03/2026 08:49:03:201270 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (Error (Geral)) CallID: uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871
+25/03/2026 08:49:03:201282 (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871) (Error (Geral)) Type: Error (Geral)
+25/03/2026 08:49:03:201308 () (uKuemVBDvm5IiYpmQCZzGdSShvqtm581451871)  Exception: O vencimento deve ser menor que 31/03/2026
