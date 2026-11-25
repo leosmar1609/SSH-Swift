@@ -1,82 +1,61 @@
-<div class="col-md-6 col-xl-4">
-    <div class="lp-card h-100 d-flex flex-column">
+@php
+    // Cor própria e estável para cada servidor (derivada do nome).
+    $hue = crc32((string) $connection->name) % 360;
+    $search = mb_strtolower($connection->name . ' ' . $connection->host . ' ' . $connection->username);
+@endphp
+<div class="col-md-6 col-xl-4 lp-srv-col" data-search="{{ $search }}" style="--i: {{ $i ?? 0 }}">
+    <article class="lp-srv" style="--hue: {{ $hue }}">
 
-        <div class="lp-card-body flex-grow-1">
+        {{-- Camadas de efeito: reflexo espelhado + brilho que segue o mouse --}}
+        <div class="lp-srv-fx" aria-hidden="true">
+            <span class="lp-srv-glare"></span>
+            <span class="lp-srv-sweep"></span>
+        </div>
 
-            {{-- Header do card --}}
-            <div class="d-flex align-items-flex-start justify-content-between gap-2 mb-3">
-                <div class="d-flex align-items-center gap-2" style="min-width:0">
-                    <div style="
-                        width:34px;height:34px;border-radius:8px;
-                        background:linear-gradient(135deg,#1a2a4a,#1f3566);
-                        border:1px solid rgba(88,166,255,.2);
-                        display:flex;align-items:center;justify-content:center;
-                        flex-shrink:0
-                    ">
-                        <i class="bi bi-hdd-fill" style="color:var(--lp-blue);font-size:15px"></i>
+        <div class="lp-srv-body">
+            <header class="lp-srv-head">
+                <div class="lp-srv-avatar">
+                    <i class="bi bi-hdd-rack-fill"></i>
+                </div>
+                <div class="lp-srv-title">
+                    <h3 title="{{ $connection->name }}">{{ $connection->name }}</h3>
+                    <div class="lp-srv-host" title="{{ $connection->host }}">
+                        <i class="bi bi-globe2"></i>{{ $connection->host }}
                     </div>
-                    <div style="min-width:0">
-                        <div style="font-weight:600;font-size:14.5px;color:var(--lp-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                            {{ $connection->name }}
-                        </div>
-                        <div style="font-size:11.5px;color:var(--lp-text-muted);font-family:'JetBrains Mono',monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                            {{ $connection->host }}
-                        </div>
-                    </div>
+                </div>
+            </header>
+
+            <div class="lp-srv-meta">
+                <div class="lp-srv-chip">
+                    <span>Usuário</span>
+                    <strong title="{{ $connection->username }}">{{ $connection->username }}</strong>
+                </div>
+                <div class="lp-srv-chip">
+                    <span>Porta</span>
+                    <strong>{{ $connection->port }}</strong>
                 </div>
             </div>
 
-            {{-- Detalhes --}}
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:.55rem">
-
-                <div style="background:var(--lp-bg);border:1px solid var(--lp-border-muted);border-radius:6px;padding:.5rem .75rem">
-                    <div style="font-size:10.5px;color:var(--lp-text-subtle);margin-bottom:.15rem;font-weight:500;text-transform:uppercase;letter-spacing:.5px">
-                        Usuário
-                    </div>
-                    <div style="font-size:13px;color:var(--lp-text);font-family:'JetBrains Mono',monospace;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                        {{ $connection->username }}
-                    </div>
-                </div>
-
-                <div style="background:var(--lp-bg);border:1px solid var(--lp-border-muted);border-radius:6px;padding:.5rem .75rem">
-                    <div style="font-size:10.5px;color:var(--lp-text-subtle);margin-bottom:.15rem;font-weight:500;text-transform:uppercase;letter-spacing:.5px">
-                        Porta
-                    </div>
-                    <div style="font-size:13px;color:var(--lp-text);font-family:'JetBrains Mono',monospace;font-weight:500">
-                        {{ $connection->port }}
-                    </div>
-                </div>
-
-            </div>
-
-            {{-- Método de autenticação --}}
-            <div class="mt-2" style="display:flex;align-items:center;gap:.4rem">
+            <div class="lp-srv-status">
                 @if($connection->auth_type === 'password')
-                    <span style="font-size:11.5px;color:#3fb950;display:inline-flex;align-items:center;gap:.3rem">
-                        <i class="bi bi-shield-lock-fill"></i> Senha configurada
-                    </span>
+                    <span class="lp-srv-tag is-ok"><i class="bi bi-shield-lock-fill"></i> Senha configurada</span>
                 @elseif($connection->ssh_key_path)
-                    <span style="font-size:11.5px;color:#3fb950;display:inline-flex;align-items:center;gap:.3rem">
-                        <i class="bi bi-key-fill"></i> Chave SSH configurada
-                    </span>
+                    <span class="lp-srv-tag is-ok"><i class="bi bi-key-fill"></i> Chave SSH</span>
                 @else
-                    <span style="font-size:11.5px;color:var(--lp-orange);display:inline-flex;align-items:center;gap:.3rem">
-                        <i class="bi bi-exclamation-triangle-fill"></i> Sem credencial configurada
-                    </span>
+                    <span class="lp-srv-tag is-warn"><i class="bi bi-exclamation-triangle-fill"></i> Sem credencial</span>
                 @endif
 
                 @if($connection->startup_script)
-                    <span style="margin-left:auto;font-size:11px;color:var(--lp-text-subtle);display:inline-flex;align-items:center;gap:.3rem">
+                    <span class="lp-srv-tag" title="Comandos executados ao conectar">
                         <i class="bi bi-terminal"></i>
                         {{ count($connection->startup_script_lines) }} {{ count($connection->startup_script_lines) === 1 ? 'cmd' : 'cmds' }}
                     </span>
                 @endif
             </div>
-
         </div>
 
-        {{-- Footer com ações --}}
-        <div class="lp-card-footer" style="gap:.5rem">
+        {{-- Ações --}}
+        <footer class="lp-srv-actions">
             <a href="{{ route('explorer.show', $connection) }}" class="btn-lp-primary" style="flex:1;justify-content:center">
                 <i class="bi bi-folder2-open"></i>
                 Explorer
@@ -137,9 +116,9 @@
                     </li>
                 </ul>
             </div>
-        </div>
+        </footer>
 
-    </div>
+    </article>
 </div>
 
 {{-- Modal de teste de conexão --}}

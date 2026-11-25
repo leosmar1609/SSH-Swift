@@ -227,15 +227,264 @@
         .lp-ro-badge { display: none; align-items: center; gap: 5px; font-size: 11.5px; color: var(--yellow); padding: 2px 8px; border: 1px solid rgba(210,153,34,.35); border-radius: 4px; white-space: nowrap; }
         body.lp-readonly .lp-ro-badge { display: inline-flex; }
     </style>
+
+    {{-- ══ Tema TechIA (vidro + aurora) — camada por cima do CSS acima ══ --}}
+    <style>
+        @property --lp-ang { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+        :root {
+            --bg:       #070a13;
+            --surface:  rgba(14, 18, 31, .72);
+            --surface2: rgba(22, 28, 46, .7);
+            --border:   rgba(255,255,255,.09);
+            --border2:  rgba(255,255,255,.06);
+            --text:     #eef2ff;
+            --muted:    #94a3b8;
+            --subtle:   #64748b;
+            --blue:     #818cf8;
+            --blue-dim: #6366f1;
+            --cyan:     #22d3ee;
+            --green:    #34d399;
+            --red:      #f87171;
+            --orange:   #fbbf24;
+            --yellow:   #fcd34d;
+            --purple:   #c084fc;
+            --grad:     linear-gradient(135deg, #22d3ee 0%, #6366f1 50%, #a855f7 100%);
+            --grad-soft:linear-gradient(135deg, rgba(34,211,238,.16), rgba(99,102,241,.16) 50%, rgba(168,85,247,.16));
+            --ease:     cubic-bezier(.2, .8, .2, 1);
+            --sidebar-w: 272px;
+            --tab-h:     38px;
+            --toolbar-h: 38px;
+            --statusbar-h: 26px;
+        }
+        html, body { background: var(--bg); -webkit-font-smoothing: antialiased; }
+        ::selection { background: rgba(99,102,241,.45); color: #fff; }
+
+        /* Fundo animado (fica atrás do IDE de vidro) */
+        .lp-aurora { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+        .lp-aurora span { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .3; will-change: transform; animation: lp-drift 30s ease-in-out infinite alternate; }
+        .lp-aurora span:nth-child(1) { width: 50vmax; height: 50vmax; background: #4f46e5; top: -24vmax; left: -16vmax; }
+        .lp-aurora span:nth-child(2) { width: 46vmax; height: 46vmax; background: #0891b2; bottom: -26vmax; right: -18vmax; animation-duration: 36s; animation-delay: -10s; }
+        .lp-aurora span:nth-child(3) { width: 30vmax; height: 30vmax; background: #9333ea; top: 35%; left: 40%; opacity: .16; animation-duration: 42s; animation-delay: -20s; }
+        @keyframes lp-drift { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(6vmax,4vmax) scale(1.1); } 100% { transform: translate(-4vmax,7vmax) scale(.95); } }
+        #lp-ide { position: relative; z-index: 1; }
+
+        /* ── Topbar de vidro ── */
+        .lp-topbar {
+            height: 52px; padding: 0 16px; gap: 14px;
+            background: rgba(7,10,19,.6);
+            -webkit-backdrop-filter: blur(18px) saturate(160%); backdrop-filter: blur(18px) saturate(160%);
+            border-bottom: 1px solid var(--border2);
+            position: relative;
+        }
+        .lp-topbar::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: linear-gradient(90deg, transparent, rgba(99,102,241,.7) 30%, rgba(34,211,238,.7) 70%, transparent); opacity: .5; }
+        .lp-topbar-brand { font-size: 15px; gap: 8px; letter-spacing: -.3px; }
+        .lp-topbar-brand > i {
+            width: 28px; height: 28px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+            background: var(--grad) !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; color: #fff !important;
+            box-shadow: 0 6px 18px -6px rgba(99,102,241,.8), inset 0 1px 0 rgba(255,255,255,.3);
+            transition: transform .4s var(--ease);
+        }
+        .lp-topbar-brand:hover > i { transform: rotate(-8deg) scale(1.08); }
+        .lp-topbar-conn {
+            padding: 5px 12px 5px 8px; border-radius: 999px;
+            background: rgba(255,255,255,.04); border: 1px solid var(--border2);
+        }
+        .lp-topbar-conn > i { width: 22px; height: 22px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; color: #c7d2fe !important; background: var(--grad-soft); border: 1px solid rgba(129,140,248,.35); }
+        .lp-topbar-conn span { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+        .lp-icon-btn {
+            border-radius: 10px; padding: 6px 12px; background: rgba(255,255,255,.04); border-color: var(--border);
+            transition: transform .2s var(--ease), background .2s, border-color .2s, color .2s, box-shadow .25s;
+        }
+        .lp-icon-btn:hover { color: #fff; background: rgba(255,255,255,.08); border-color: rgba(165,180,252,.45); transform: translateY(-1px); box-shadow: 0 8px 20px -12px rgba(99,102,241,.9); }
+
+        /* ── Sidebar de vidro ── */
+        #sidebar {
+            margin: 10px 0 10px 10px; border-radius: 16px;
+            background: linear-gradient(170deg, rgba(255,255,255,.06), rgba(255,255,255,.015) 40%, rgba(255,255,255,.025));
+            -webkit-backdrop-filter: blur(18px) saturate(150%); backdrop-filter: blur(18px) saturate(150%);
+            border: 1px solid var(--border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 18px 40px -24px rgba(0,0,0,.9);
+        }
+        .lp-server-header { padding: 14px 14px 12px; border-bottom-color: var(--border2); background: radial-gradient(120% 120% at 0% 0%, rgba(99,102,241,.14), transparent 60%); }
+        .lp-server-name { font-size: 13.5px; font-weight: 700; }
+        .lp-conn-dot { width: 9px; height: 9px; }
+        .lp-conn-dot.online { background: var(--green); box-shadow: 0 0 0 0 rgba(52,211,153,.6); animation: lp-ping 2.2s infinite; }
+        .lp-conn-dot.offline { background: var(--red); box-shadow: 0 0 10px rgba(248,113,113,.7); }
+        @keyframes lp-ping { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); } 80%, 100% { box-shadow: 0 0 0 8px rgba(52,211,153,0); } }
+        .lp-server-meta { padding-left: 15px; }
+
+        .lp-sidebar-actions, .lp-sidebar-search { padding: 8px 12px; border-bottom-color: var(--border2); }
+        .lp-act-btn {
+            border-radius: 9px; padding: 6px 6px; background: rgba(255,255,255,.04); border-color: var(--border);
+            transition: transform .2s var(--ease), background .2s, border-color .2s, color .2s;
+        }
+        .lp-act-btn:hover { color: #fff; background: var(--grad-soft); border-color: rgba(129,140,248,.45); transform: translateY(-1px); }
+        .lp-sidebar-search input { border-radius: 999px; padding: 6px 12px; background: rgba(5,8,16,.55); }
+        .lp-sidebar-search input:focus { border-color: rgba(129,140,248,.8); box-shadow: 0 0 0 3px rgba(99,102,241,.18); }
+
+        .lp-section { border-bottom-color: var(--border2); }
+        .lp-section-hdr { padding: 10px 12px 7px; font-size: 10.5px; letter-spacing: .9px; }
+        .lp-section-hdr:hover { color: #fff; }
+
+        /* Árvore de arquivos */
+        .lp-node { min-height: 25px; padding: 0 6px; }
+        .lp-node-inner { border-radius: 7px; transition: background .15s; }
+        .lp-node:hover > .lp-node-inner { background: rgba(255,255,255,.055); }
+        .lp-node.active > .lp-node-inner { background: var(--grad-soft); box-shadow: inset 2px 0 0 #818cf8; }
+        .lp-node.active .lp-node-name { color: #fff; }
+        .lp-node:hover .lp-node-name { color: var(--text); }
+        .lp-node-action-btn { border-radius: 5px; }
+
+        /* ── Atalhos ── */
+        .lp-shortcuts-body { padding: 4px 10px 10px; gap: 6px; }
+        .lp-shortcut-btn {
+            padding: 9px 12px 9px 14px; border-radius: 11px; overflow: hidden;
+            background: linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.015));
+            border: 1px solid var(--border);
+            transition: transform .25s var(--ease), background .25s, border-color .25s, color .2s, box-shadow .25s;
+        }
+        .lp-shortcut-btn::before {
+            content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,.12), transparent);
+            transform: skewX(-18deg); transition: left .7s var(--ease); pointer-events: none;
+        }
+        .lp-shortcut-btn:hover {
+            color: #fff; transform: translateX(3px);
+            border-color: rgba(129,140,248,.45);
+            background: linear-gradient(160deg, rgba(99,102,241,.16), rgba(34,211,238,.06));
+            box-shadow: 0 10px 22px -14px rgba(99,102,241,.9);
+        }
+        .lp-shortcut-btn:hover::before { left: 130%; }
+        .lp-shortcut-btn.active {
+            color: #fff; border-color: rgba(129,140,248,.7);
+            background: linear-gradient(160deg, rgba(99,102,241,.24), rgba(168,85,247,.12));
+            box-shadow: inset 3px 0 0 #818cf8, 0 10px 24px -14px rgba(99,102,241,1);
+        }
+        .lp-shortcut-btn i.sc-icon {
+            width: 24px; height: 24px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 12.5px;
+            color: #c7d2fe !important; background: var(--grad-soft); border: 1px solid rgba(129,140,248,.3);
+            transition: transform .35s var(--ease);
+        }
+        .lp-shortcut-btn:hover i.sc-icon { transform: rotate(-8deg) scale(1.08); }
+        .lp-shortcut-btn .sc-grip { left: 2px; }
+        .lp-sc-btns { right: 6px; background: rgba(10,14,25,.85); border-radius: 7px; padding: 2px; }
+        .lp-shortcut-edit:hover { color: #c7d2fe; background: rgba(99,102,241,.2); }
+        .lp-shortcut-btn.sc-drop-before { box-shadow: 0 -2px 0 0 #818cf8, 0 -6px 14px -6px rgba(99,102,241,.9); }
+        .lp-shortcut-btn.sc-drop-after  { box-shadow: 0 2px 0 0 #818cf8, 0 6px 14px -6px rgba(99,102,241,.9); }
+        .lp-sec-actions button:hover { color: #fff; background: rgba(99,102,241,.2); }
+        .lp-sc-add { border-radius: 10px; padding: 7px 10px; border-color: rgba(255,255,255,.14); transition: background .2s, color .2s, border-color .2s; }
+        .lp-sc-add:hover { color: #c7d2fe; border-color: rgba(129,140,248,.6); background: rgba(99,102,241,.08); }
+        .lp-icon-pick { border-radius: 10px; background: rgba(5,8,16,.5); transition: transform .2s var(--ease), background .15s, color .15s, border-color .15s; }
+        .lp-icon-pick:hover { transform: translateY(-2px); }
+        .lp-icon-pick.selected { background: var(--grad-soft); border-color: rgba(129,140,248,.7); color: #c7d2fe; box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+
+        /* ── Área principal (abas + barra + editor) em vidro ── */
+        #main {
+            margin: 10px; border-radius: 16px; overflow: hidden;
+            background: rgba(10,14,25,.6);
+            -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+            border: 1px solid var(--border);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 40px -24px rgba(0,0,0,.9);
+        }
+        #tab-bar { background: rgba(255,255,255,.025); border-bottom-color: var(--border2); padding: 5px 6px 0; gap: 3px; }
+        .lp-tab {
+            border-right: 0; border-radius: 10px 10px 0 0; padding: 0 12px 0 12px;
+            transition: background .2s, color .2s;
+        }
+        .lp-tab:hover { background: rgba(255,255,255,.05); }
+        .lp-tab.active {
+            background: #0b0f1c; color: #fff; border-bottom: 0;
+            box-shadow: inset 0 2px 0 0 transparent;
+        }
+        .lp-tab.active::before { content: ''; position: absolute; left: 10px; right: 10px; top: 0; height: 2px; border-radius: 0 0 2px 2px; background: var(--grad); box-shadow: 0 0 10px rgba(99,102,241,.9); }
+        .lp-tab-close { border-radius: 5px; }
+
+        #toolbar { background: #0b0f1c; border-bottom-color: var(--border2); padding: 0 12px; }
+        .lp-bc { border-radius: 7px; transition: background .15s, color .15s; }
+        .lp-bc.last { color: #fff; font-weight: 600; }
+        .lp-tb-btn { border-radius: 8px; padding: 5px 9px; transition: background .15s, color .15s, transform .2s var(--ease); }
+        .lp-tb-btn:hover:not(:disabled) { color: #fff; background: rgba(255,255,255,.08); transform: translateY(-1px); }
+        .lp-tb-btn.save-active { color: #fff; background: var(--grad); box-shadow: 0 6px 16px -6px rgba(99,102,241,.9); }
+        .lp-ro-badge { border-radius: 999px; border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.08); }
+
+        #editor-wrap { background: #0b0f1c; }
+
+        /* Boas-vindas */
+        #welcome .lp-welcome-icon {
+            width: 84px; height: 84px; border-radius: 24px; display: flex; align-items: center; justify-content: center; font-size: 2.3rem;
+            color: #fff; background: var(--grad); background-size: 200% 200%;
+            box-shadow: 0 22px 50px -18px rgba(99,102,241,.95), inset 0 1px 0 rgba(255,255,255,.3);
+            animation: lp-float 4.5s ease-in-out infinite, lp-grad-shift 8s ease infinite;
+        }
+        #welcome h2 { font-size: 22px; font-weight: 800; background: linear-gradient(180deg, #fff 30%, #a5b4fc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .lp-shortcut-grid { gap: .55rem 1.1rem; padding: 1rem 1.25rem; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid var(--border2); }
+        .lp-shortcut-grid kbd { border-radius: 7px; padding: 2px 8px; background: rgba(255,255,255,.06); border-color: var(--border); box-shadow: inset 0 -1px 0 rgba(255,255,255,.08); }
+        @keyframes lp-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes lp-grad-shift { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+
+        /* ── Barra de status ── */
+        #status-bar {
+            margin: 0 10px 10px; border-radius: 10px; padding: 0 12px;
+            background: linear-gradient(90deg, rgba(34,211,238,.85), rgba(99,102,241,.9) 50%, rgba(168,85,247,.85));
+            color: #fff; box-shadow: 0 10px 26px -14px rgba(99,102,241,1);
+        }
+        .lp-sb-term-btn { border-radius: 6px; background: rgba(255,255,255,.16); color: #fff; }
+        .lp-sb-term-btn:hover { background: rgba(255,255,255,.28); }
+
+        /* ── Menu de contexto, toasts e modais ── */
+        #ctx-menu {
+            border-radius: 12px; padding: 5px;
+            background: rgba(15,19,32,.92); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+            box-shadow: 0 20px 44px -12px rgba(0,0,0,.85);
+            animation: lp-pop .16s var(--ease);
+        }
+        .ctx-item { border-radius: 8px; transition: background .15s, color .15s, padding-left .2s var(--ease); }
+        .ctx-item:hover { color: #fff; background: rgba(255,255,255,.07); padding-left: 14px; }
+        @keyframes lp-pop { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: none; } }
+
+        .lp-toast { border-radius: 12px; padding: 10px 16px; -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 14px 30px -12px rgba(0,0,0,.8); }
+        .lp-toast.ok   { background: rgba(6,78,59,.75);  border-color: rgba(52,211,153,.45); color: #a7f3d0; }
+        .lp-toast.err  { background: rgba(127,29,29,.75); border-color: rgba(248,113,113,.45); color: #fecaca; }
+        .lp-toast.info { background: rgba(15,19,32,.88); border-color: var(--border); }
+
+        .modal-backdrop.show { opacity: 1; background: rgba(3,5,12,.6); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+        .lp-modal .modal-content {
+            background: rgba(14,18,31,.92); -webkit-backdrop-filter: blur(20px) saturate(150%); backdrop-filter: blur(20px) saturate(150%);
+            border-radius: 18px; box-shadow: 0 30px 80px -20px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.07);
+        }
+        .lp-modal.fade .modal-dialog { transform: translateY(16px) scale(.97); transition: transform .3s var(--ease); }
+        .lp-modal.show .modal-dialog { transform: none; }
+        .lp-modal .modal-header, .lp-modal .modal-footer { border-color: var(--border2); }
+        .lp-input { border-radius: 10px; background: rgba(5,8,16,.55); transition: border-color .2s, box-shadow .2s; }
+        .lp-input:focus { border-color: rgba(129,140,248,.8); box-shadow: 0 0 0 4px rgba(99,102,241,.18); }
+        .lp-btn-primary, .lp-btn-secondary, .lp-btn-danger { border-radius: 10px; font-weight: 600; transition: transform .2s var(--ease), box-shadow .25s, background .25s, border-color .25s; }
+        .lp-btn-primary { background: var(--grad); background-size: 180% 180%; box-shadow: 0 8px 22px -10px rgba(99,102,241,.9), inset 0 1px 0 rgba(255,255,255,.25); }
+        .lp-btn-primary:hover { background: var(--grad); background-size: 180% 180%; background-position: 100% 50%; transform: translateY(-1px); box-shadow: 0 14px 28px -10px rgba(99,102,241,1); }
+        .lp-btn-secondary { background: rgba(255,255,255,.04); }
+        .lp-btn-secondary:hover { background: rgba(255,255,255,.08); border-color: rgba(165,180,252,.45); transform: translateY(-1px); }
+        .lp-btn-danger:hover { color: #fff; background: linear-gradient(135deg, #ef4444, #db2777); border-color: transparent; transform: translateY(-1px); }
+        .lp-search-item { border-radius: 9px; transition: background .15s, transform .2s var(--ease); }
+        .lp-search-item:hover { background: var(--grad-soft); transform: translateX(3px); }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(129,140,248,.45); background-clip: padding-box; }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+        }
+    </style>
 </head>
 <body class="{{ auth()->user()->is_admin ? '' : 'lp-readonly' }}">
+<div class="lp-aurora" aria-hidden="true"><span></span><span></span><span></span></div>
 <div id="lp-ide">
 
 {{-- ── Topbar ── --}}
 <header class="lp-topbar">
     <a href="{{ route('connections.index') }}" class="lp-topbar-brand" title="Servidores">
-        <i class="bi bi-terminal-fill" style="color:var(--blue)"></i>
-        Leo<span>Panel</span>
+        <i class="bi bi-terminal-fill" style="background:linear-gradient(135deg,#22d3ee,#6366f1 50%,#a855f7);-webkit-background-clip:text;background-clip:text;color:transparent"></i>
+        TechIA<span style="background:linear-gradient(135deg,#22d3ee,#6366f1 50%,#a855f7);-webkit-background-clip:text;background-clip:text;color:transparent"> Panel</span>
     </a>
     <div class="lp-topbar-sep"></div>
     <div class="lp-topbar-conn">
@@ -1901,12 +2150,22 @@ require(['vs/editor/editor.main'], function () {
         inherit: true,
         rules  : [],
         colors : {
-            'editor.background'               : '#0d1117',
-            'editor.lineHighlightBackground'  : '#161b22',
-            'editorLineNumber.foreground'     : '#6e7681',
-            'editorLineNumber.activeForeground': '#e6edf3',
-            'editor.selectionBackground'      : '#1f6feb66',
-            'editorIndentGuide.background1'   : '#21262d',
+            'editor.background'               : '#0b0f1c',
+            'editor.lineHighlightBackground'  : '#ffffff08',
+            'editor.lineHighlightBorder'      : '#00000000',
+            'editorLineNumber.foreground'     : '#475569',
+            'editorLineNumber.activeForeground': '#c7d2fe',
+            'editor.selectionBackground'      : '#6366f155',
+            'editor.inactiveSelectionBackground': '#6366f12a',
+            'editorCursor.foreground'         : '#a5b4fc',
+            'editorIndentGuide.background1'   : '#1e2436',
+            'editorIndentGuide.activeBackground1': '#4f46e5aa',
+            'editorGutter.background'         : '#0b0f1c',
+            'minimap.background'              : '#0b0f1c',
+            'editorWidget.background'         : '#11162a',
+            'editorWidget.border'             : '#2a3150',
+            'scrollbarSlider.background'      : '#ffffff14',
+            'scrollbarSlider.hoverBackground' : '#818cf855',
         },
     });
 

@@ -38,8 +38,8 @@
             display: flex; align-items: center; padding: 0 16px; gap: 12px; flex-shrink: 0; z-index: 10;
         }
         .brand { display: flex; align-items: center; gap: 7px; text-decoration: none; font-weight: 700; font-size: 15px; color: var(--text); }
-        .brand-icon { width: 26px; height: 26px; background: linear-gradient(135deg, var(--blue-dim), var(--blue)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
-        .brand span { color: var(--blue); }
+        .brand-icon { width: 26px; height: 26px; background: linear-gradient(135deg,#22d3ee,#6366f1 50%,#a855f7); border-radius: 8px; box-shadow: 0 4px 14px -4px rgba(99,102,241,.8); display: flex; align-items: center; justify-content: center; font-size: 13px; }
+        .brand span { background: linear-gradient(135deg,#22d3ee,#6366f1 50%,#a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .topbar-sep { width: 1px; height: 18px; background: var(--border); }
         .topbar-title { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
         .topbar-title i { color: var(--blue); }
@@ -170,7 +170,7 @@
 <header class="topbar">
     <a href="{{ route('connections.index') }}" class="brand">
         <div class="brand-icon"><i class="bi bi-terminal-fill" style="color:#fff"></i></div>
-        Leo<span>Panel</span>
+        TechIA<span> Panel</span>
     </a>
     <div class="topbar-sep"></div>
     <div class="topbar-title">

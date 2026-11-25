@@ -40,8 +40,8 @@
             position: relative;
         }
         .lp-brand { display: flex; align-items: center; gap: 6px; color: var(--text); text-decoration: none; font-weight: 700; font-size: 15px; }
-        .lp-brand-icon { width: 26px; height: 26px; background: linear-gradient(135deg, var(--blue-dim), var(--blue)); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-        .lp-brand span { color: var(--blue); }
+        .lp-brand-icon { width: 26px; height: 26px; background: linear-gradient(135deg,#22d3ee,#6366f1 50%,#a855f7); border-radius: 8px; box-shadow: 0 4px 14px -4px rgba(99,102,241,.8); display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .lp-brand span { background: linear-gradient(135deg,#22d3ee,#6366f1 50%,#a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
         .lp-topbar-sep { width: 1px; height: 18px; background: var(--border); }
         .lp-topbar-title { font-size: 13px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
         .lp-topbar-title i { color: var(--blue); }
@@ -346,7 +346,7 @@
 <div class="lp-topbar">
     <a href="{{ route('connections.index') }}" class="lp-brand">
         <div class="lp-brand-icon"><i class="bi bi-terminal-fill" style="color:#fff"></i></div>
-        Leo<span>Panel</span>
+        TechIA<span> Panel</span>
     </a>
     <div class="lp-topbar-sep"></div>
     <div class="lp-topbar-title"><i class="bi bi-send"></i> HTTP Client</div>
